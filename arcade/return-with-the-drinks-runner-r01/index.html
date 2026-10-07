@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en-GB">
+<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · M05E.1 CANDIDATE · src 10531a8">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+
+<meta name="theme-color" content="#0a0a0a">
+<title>RETURN WITH THE DRINKS runner R01 · prototype · PUBLIC TEST</title>
+<style>
+  html,body{margin:0;height:100%;background:#0a0a0a;overflow:hidden;overscroll-behavior:none;touch-action:none;user-select:none;-webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;font-family:ui-monospace,Menlo,Consolas,monospace}
+  #c{position:fixed;display:block;background:#000}
+  .pad{position:fixed;display:none;width:var(--b);height:var(--b);border:3px solid #d6ff00;border-radius:14px;background:rgba(10,10,10,.5);color:#d6ff00;
+    font:900 calc(var(--b)*.34)/1 inherit;align-items:center;justify-content:center;touch-action:none;z-index:3}
+  .pad.on{background:rgba(214,255,0,.4)}
+  body.touch .pad{display:flex}
+  #hint{position:fixed;left:0;right:0;display:none;text-align:center;color:#6b7186;font-size:11px;letter-spacing:.06em}
+</style>
+</head>
+<body>
+<canvas id="c" width="640" height="360" role="img" aria-label="Return With The Drinks runner game"></canvas>
+<div id="hint">TURN YOUR PHONE SIDEWAYS FOR A BIGGER PICTURE</div>
+<div class="pad" id="padL" data-k="left">&#9664;</div>
+<div class="pad" id="padR" data-k="right">&#9654;</div>
+<script>
+/* RETURN WITH THE DRINKS: forward runner R01 (prototype). Standalone: no network, no storage, no analytics, no links out.
+   Fictional demo scoring only: no real discounts or rewards. Fixed 60 Hz sim so it is testable. */
+(() => {
+'use strict';
+const W = 640, H = 360, HZ = 105, CX = 320, DT = 1 / 60, BPM = 128;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const C = { ink: '#0a0a0a', acid: '#d6ff00', paper: '#f4f4f0', red: '#ff2e63', purple: '#5b2a86', blue: '#29c5ff', amber: '#e0a030', beer: '#e8a317', foam: '#fff4cf', glass: 'rgba(200,230,255,.28)' };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), hash = (n) => { n = (n << 13) ^ n; return ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 0x7fffffff; };
+
+/* ---------- tuning (the whole feel lives here) ---------- */
+const TUNE = { vmax: 1.15, rampUp: 0.1, rampDown: 0.12,   // steering: u eases toward the input, lateral speed = u * vmax
+  K: 45, Cdamp: 2.2, G: 2.3, spill: 0.5, spillRate: 1.4,  // slosh spring: stiffness, damping, forcing from lateral acceleration, threshold, loss/s
+  speed0: 12, speed1: 20, length: 900, trayBase: 0.09, trayPer: 0.013, bump: [6, 0.07], stool: [10, 0.16] };
+
+/* ---------- course ---------- */
+function makeCourse(n, empty) { // rows come at you; the gap narrows, rows get closer in time, and lateral moves stay within what smooth steering can reach
+  const rows = []; let z = 40, gx = 0, i = 0; const L = TUNE.length;
+  const wallObjs = (gx, gap, seed0) => { const objs = []; let k = 0; // dancers packed up to the gap's exact edges, so the gap is the real width
+    for (let x = gx - gap / 2 - 0.1; x > -1.25; x -= 0.2) objs.push({ x, w: 0.2, seed: seed0 + k++ }); for (let x = gx + gap / 2 + 0.1; x < 1.25; x += 0.2) objs.push({ x, w: 0.2, seed: seed0 + k++ }); return objs; };
+  while (z < L - 40 && !empty) {
+    const p = z / L, v = TUNE.speed0 + (TUNE.speed1 - TUNE.speed0) * p, gap = 1.05 - 0.6 * p, ts = 2.3 - 1.0 * p;
+    const reach = 0.55 * TUNE.vmax * ts, r = hash(i * 7 + 3), r2 = hash(i * 13 + 5);
+    gx = clamp(gx + (r * 2 - 1) * reach, -(1 - gap / 2) + 0.05, (1 - gap / 2) - 0.05);
+    if (i % 5 === 4 && p > 0.15) rows.push({ z, kind: 'stool', objs: [{ x: clamp(gx + (r2 - 0.5) * 0.3, -0.8, 0.8), w: 0.34, seed: i }], gap, gx });
+    else if (i % 4 === 2 && p > 0.1) { const gs = 1.2 - 0.3 * p; gx = clamp(gx, -(1 - gs / 2) + 0.05, (1 - gs / 2) - 0.05);
+      rows.push({ z, kind: 'sway', objs: wallObjs(gx, gs, i * 20).concat([{ x: gx, w: 0.2, amp: 0.22, om: 1.6 + p, ph: r * 6, seed: i + 500 }]), gap: gs, gx }); }
+    else rows.push({ z, kind: 'wall', objs: wallObjs(gx, gap, i * 20), gap, gx });
+    z += ts * v; i++;
+  }
+  return rows;
+}
+
+/* ---------- state ---------- */
+const G = { state: 'title', t: 0, n: 3, px: 0, vx: 0, u: 0, z: 0, speed: 12, ax: 0, rows: [], cups: [], parts: [], toasts: [], bump: 0, near: 0, bumps: 0, stoolHits: 0, E: 0, Es: 0, time: 0, flash: 0, shake: 0, result: null, empty: false, best: null, slow: 0, lastSlosh: 0 };
+const input = { left: false, right: false, axis: null }; const pressed = new Set();
+const trayHalf = () => TUNE.trayBase + TUNE.trayPer * G.n;
+function start(n, empty) {
+  G.n = n; G.empty = !!empty; G.px = 0; G.vx = 0; G.u = 0; G.z = 0; G.speed = TUNE.speed0; G.rows = makeCourse(n, G.empty); G.rows.forEach((r) => { r.done = false; r.hit = false; });
+  G.cups = Array.from({ length: n }, (_, i) => ({ lv: 1, s: 0, ds: 0, k: TUNE.K * (1 + 0.06 * (i - (n - 1) / 2)) })); G.parts = []; G.toasts = []; G.near = 0; G.bumps = 0; G.stoolHits = 0; G.Es = 0; G.time = 0; G.flash = 0; G.shake = 0; G.result = null; G.slow = 0; G.ax = 0;
+  G.state = 'play';
+}
+const liquid = () => G.cups.reduce((a, c) => a + c.lv, 0);
+function toast(m, col = C.paper) { G.toasts.push({ m, t: 70, col }); if (G.toasts.length > 2) G.toasts.shift(); }
+function droplets(ci, n) { const cup = cupX(ci); for (let i = 0; i < n; i++) G.parts.push({ x: cup + (Math.random() - 0.5) * 20, y: 270, vx: (Math.random() - 0.5) * 3 + Math.sign(G.cups[ci].s) * 1.5, vy: -2 - Math.random() * 2.5, t: 40 }); }
+const CUP_W = 46, CUP_GAP = 8, cupX = (i) => CX + (i - (G.n - 1) / 2) * (CUP_W + CUP_GAP);
+
+/* ---------- update ---------- */
+function steerInput() { if (input.axis !== null) return input.axis; return (input.right ? 1 : 0) - (input.left ? 1 : 0); }
+function physics() { // pure-ish: steering -> lateral accel -> slosh springs -> spill
+  const d = steerInput(); const rate = d !== 0 ? TUNE.rampUp : TUNE.rampDown; G.u += clamp(d - G.u, -rate, rate);
+  const vx0 = G.vx; G.vx = G.u * TUNE.vmax + (G.knock || 0); G.knock = (G.knock || 0) * 0.9; G.px = clamp(G.px + G.vx * DT, -1.05, 1.05); G.ax = (G.vx - vx0) / DT;
+  const gain = TUNE.G * (1 + 0.18 * (G.n - 2)); let E = 0, total0 = liquid();
+  for (let i = 0; i < G.cups.length; i++) { const c = G.cups[i];
+    c.ds += (-c.k * c.s - TUNE.Cdamp * c.ds - gain * G.ax * (0.9 + 0.1 * Math.abs(i - (G.n - 1) / 2))) * DT; c.s += c.ds * DT; c.s = clamp(c.s, -1.2, 1.2); E += c.s * c.s;
+    const ex = Math.max(0, Math.abs(c.s) - TUNE.spill); if (ex > 0 && c.lv > 0) { const loss = Math.min(c.lv, ex * TUNE.spillRate * DT * (0.6 + 0.4 * c.lv)); c.lv -= loss; if (Math.random() < 0.5) droplets(i, 1); } }
+  G.E = E / G.cups.length; G.Es += G.E * DT; if (liquid() < total0 - 0.0005 && G.t - G.lastSlosh > 50 && !G.bump) { G.lastSlosh = G.t; toast('SLOSH! SMOOTHER', C.amber); }
+}
+function updateWorld() {
+  const p = clamp(G.z / TUNE.length, 0, 1); G.speed = (TUNE.speed0 + (TUNE.speed1 - TUNE.speed0) * p) * (1 - 0.45 * clamp(G.slow, 0, 1)); G.slow = Math.max(0, G.slow - DT * 1.2); G.z += G.speed * DT; G.time += DT;
+  for (const r of G.rows) { const d = r.z - G.z; if (r.done || d > 1) continue;
+    for (const o of r.objs) { const ox = o.amp ? o.x + o.amp * Math.sin(G.t / 60 * o.om + o.ph) : o.x, half = o.w / 2 + trayHalf();
+      if (!r.hit && Math.abs(d) < 0.35 && Math.abs(ox - G.px) < half) { r.hit = true; hitRow(r, ox, o); } }
+    if (d < -0.35) { r.done = true; if (!r.hit) { let best = 9; for (const o of r.objs) { const ox = o.amp ? o.x + o.amp * Math.sin(G.t / 60 * o.om + o.ph) : o.x; best = Math.min(best, Math.abs(ox - G.px) - (o.w / 2 + trayHalf())); }
+      if (best >= 0 && best < 0.07) { G.near++; toast('CLOSE ONE', C.blue); } } } }
+  if (G.z >= TUNE.length) finish();
+}
+function hitRow(r, ox, o) {
+  const dir = Math.sign(G.px - ox) || 1, stool = r.kind === 'stool', [imp, loss] = stool ? TUNE.stool : TUNE.bump; G.bump = 20; G.bumps++; if (stool) G.stoolHits++; G.slow = stool ? 1 : 0.6; G.knock = dir * (stool ? 1.1 : 0.7);
+  G.cups.forEach((c, i) => { c.ds += dir * (imp + Math.random() * 2); const l = Math.min(c.lv, loss * (0.8 + Math.random() * 0.5)); c.lv -= l; droplets(i, 6); }); G.flash = 8; G.shake = stool ? 14 : 8; SFX.bump(); toast(stool ? 'STOOL! BIG SPILL' : 'BUMPED A DANCER', C.red);
+}
+function finish() {
+  const n = G.n, lv = liquid(), smooth = clamp(1 - Math.sqrt(G.Es / Math.max(1, G.time)) / 0.5, 0, 1), pct = (lv / n) * 0.7 + smooth * 0.2 + Math.min(1, G.near / 8) * 0.1;
+  const grade = pct >= 0.9 ? 'S' : pct >= 0.75 ? 'A' : pct >= 0.55 ? 'B' : 'C', delivered = G.cups.filter((c) => c.lv > 0.05).length, score = Math.round(lv * 1000 * (1 + 0.25 * (n - 2)) + smooth * 500 + G.near * 100);
+  G.result = { grade, score, liquidPct: Math.round(lv / n * 100), delivered, n, smoothPct: Math.round(smooth * 100), near: G.near, bumps: G.bumps, secs: Math.round(G.time) }; if (!G.best || score > G.best.score) G.best = G.result; G.state = 'done'; G.card = 0; SFX.done();
+}
+function update() {
+  G.t++; const go = pressed.has('Enter') || pressed.has('Space') || pressed.has('click') || pressed.has('tap');
+  if (pressed.has('KeyM')) audio.muted = !audio.muted;
+  if (G.state === 'title') { if (pressed.has('ArrowLeft') || pressed.has('KeyA') || pressed.has('padL')) G.n = Math.max(2, G.n - 1); if (pressed.has('ArrowRight') || pressed.has('KeyD') || pressed.has('padR')) G.n = Math.min(6, G.n + 1); if (go) start(G.n); }
+  else if (G.state === 'play') {
+    if (pressed.has('Escape') || pressed.has('KeyP')) G.state = 'paused'; else if (pressed.has('KeyR')) start(G.n, G.empty);
+    else { physics(); updateWorld(); if (G.bump > 0) G.bump--; if (liquid() <= 0.001 && G.state === 'play') { G.state = 'fail'; G.card = 0; SFX.fail(); } music(); }
+  } else if (G.state === 'paused') { if (pressed.has('Escape') || pressed.has('KeyP') || go) G.state = 'play'; }
+  else if (G.state === 'done' || G.state === 'fail') { G.card++; if (G.card > 50 && (go || pressed.has('KeyR'))) { if (G.state === 'fail' || pressed.has('KeyR')) start(G.n, G.empty); else G.state = 'title'; } }
+  G.parts.forEach((q) => { q.x += q.vx; q.y += q.vy; q.vy += 0.25; q.t--; }); G.parts = G.parts.filter((q) => q.t > 0); G.toasts.forEach((t) => t.t--); G.toasts = G.toasts.filter((t) => t.t > 0);
+  if (G.flash > 0) G.flash--; if (G.shake > 0) G.shake--; pressed.clear();
+}
+
+/* ---------- audio ---------- */
+const audio = { ctx: null, muted: false, step: -1 };
+function audioInit() { if (audio.ctx || !(window.AudioContext || window.webkitAudioContext)) return; try { audio.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audio.ctx = null; } }
+function tone(f, d, type = 'square', v = 0.05, slide = 0, when = 0) { if (!audio.ctx || audio.muted) return; const t = audio.ctx.currentTime + when, o = audio.ctx.createOscillator(), g = audio.ctx.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), t + d); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g).connect(audio.ctx.destination); o.start(t); o.stop(t + d + 0.02); }
+const SFX = { bump: () => { tone(110, .2, 'sawtooth', .09, -60); tone(700, .08, 'square', .03, -300); }, done: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .14, 'square', .05, 0, i * .1)), fail: () => tone(260, .5, 'sawtooth', .07, -200) };
+function music() { if (!audio.ctx || audio.muted) return; const st = 60 / BPM / 4, n = Math.floor(audio.ctx.currentTime / st); if (n === audio.step) return; audio.step = n; const s = n % 16; if (s % 4 === 0) tone(58, .14, 'sine', .08, -30); if (s % 4 === 2) tone(6000, .02, 'square', .008); if ([0, 3, 6, 10, 12].includes(s)) tone(s < 8 ? 55 : 49, .12, 'sawtooth', .035); }
+
+/* ---------- drawing ---------- */
+const sc = (d) => 1 / (1 + 0.22 * d), gy = (d) => HZ + (H - HZ - 10) * sc(d), beatP = () => ((G.t / 60) * (BPM / 60)) % 1;
+const camX = () => G.px * 0.85;
+function drawBG() {
+  const bp = beatP(); const g = ctx.createLinearGradient(0, 0, 0, HZ); g.addColorStop(0, '#05030a'); g.addColorStop(1, '#1a0f2a'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, HZ + 2);
+  const tint = ['rgba(91,42,134,', 'rgba(41,197,255,', 'rgba(255,46,99,'];
+  for (let i = 0; i < 6; i++) { const a = Math.sin(G.t / 90 + i * 1.7) * 0.5, x0 = 60 + i * 105; ctx.fillStyle = tint[i % 3] + (0.1 + 0.12 * (1 - bp) * (i % 2) + 0.05) + ')'; ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0 + 18, 0); ctx.lineTo(CX + (x0 - CX) * 0.2 + a * 160, HZ); ctx.lineTo(CX + (x0 - CX) * 0.2 + a * 160 - 70, HZ); ctx.fill(); }
+  for (let i = 0; i < 24; i++) { const x = (hash(i) * W * 1.2 - camX() * 18) % W, y = 8 + hash(i + 40) * 70; ctx.fillStyle = i % 5 ? 'rgba(160,166,184,.5)' : C.acid; ctx.fillRect((x + W) % W, y, 2, 2); }
+  // DJ booth far away
+  ctx.fillStyle = '#0d0818'; ctx.fillRect(CX - 70 - camX() * 10, HZ - 28, 140, 28); ctx.fillStyle = C.purple; ctx.fillRect(CX - 70 - camX() * 10, HZ - 28, 140, 3); ctx.fillStyle = C.acid; ctx.fillRect(CX - 8 - camX() * 10, HZ - 20, 16, 4);
+}
+function drawFloor() {
+  const bp = beatP(), cx = camX();
+  for (let y = HZ; y < H; y += 2) { const k = (y - HZ) / (H - HZ - 10), d = Math.max(0, (1 / Math.max(0.0001, k) - 1) / 0.22), band = Math.floor((d + G.z) / 3) % 2, hw = 300 * k;
+    ctx.fillStyle = band ? '#14101f' : '#1c1530'; ctx.fillRect(0, y, W, 2);
+    ctx.fillStyle = band ? `rgba(91,42,134,${0.35 + 0.25 * (1 - bp)})` : `rgba(41,197,255,${0.12 + 0.12 * (1 - bp)})`; ctx.fillRect(CX - cx * 300 * k - hw, y, hw * 2, 2); }
+  // lane edges
+  ctx.strokeStyle = C.acid; ctx.lineWidth = 3; for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(CX + (s - cx) * 300 * sc(60), gy(60)); ctx.lineTo(CX + (s - cx) * 300 * sc(0), gy(0)); ctx.stroke(); }
+}
+function dancer(x, d, w, seed, kind) {
+  const k = sc(d), fy = gy(d), sx = CX + (x - camX()) * 300 * k, h = 150 * k * (kind === 'stool' ? 0.75 : 1), ww = w * 300 * k, bp = beatP(), bob = Math.sin(G.t / 9 + seed) * 3 * k; if (sx < -80 || sx > W + 80) return;
+  const tops = [C.red, C.blue, C.purple, C.acid, '#ff8a2e'], top = tops[Math.abs(seed) % 5], skin = ['#e8b48a', '#b97d58', '#8a5a3a', '#f0c8a0'][Math.abs(seed) % 4];
+  if (kind === 'stool') { ctx.fillStyle = '#2a1a10'; ctx.fillRect(sx - ww / 2, fy - h * 0.55, ww, h * 0.18); ctx.fillStyle = '#7a4a2b'; ctx.fillRect(sx - ww / 2, fy - h * 0.55, ww, 4 * k + 2); ctx.fillStyle = '#3a3a48'; ctx.fillRect(sx - ww * 0.35, fy - h * 0.38, ww * 0.12, h * 0.38); ctx.fillRect(sx + ww * 0.23, fy - h * 0.38, ww * 0.12, h * 0.38);
+    ctx.fillStyle = '#0d0818'; ctx.fillRect(sx - ww * 0.45, fy - h * 1.0, ww * 0.9, h * 0.42); ctx.fillStyle = C.acid; ctx.beginPath(); ctx.arc(sx, fy - h * 0.8, ww * 0.18, 0, 6.3); ctx.fill(); return; }
+  ctx.fillStyle = '#15101c'; ctx.fillRect(sx - ww * 0.35, fy - h * 0.38 + bob * 0.3, ww * 0.28, h * 0.38); ctx.fillRect(sx + ww * 0.07, fy - h * 0.38 - bob * 0.3, ww * 0.28, h * 0.38);          // legs
+  ctx.fillStyle = top; ctx.fillRect(sx - ww * 0.5, fy - h * 0.78 + bob, ww, h * 0.42);                                                                                                    // torso
+  ctx.fillStyle = top; const up = Math.sin(G.t / 9 + seed) > 0; ctx.fillRect(sx - ww * 0.72, fy - h * (up ? 1.0 : 0.6) + bob, ww * 0.2, h * (up ? 0.34 : 0.3)); ctx.fillRect(sx + ww * 0.52, fy - h * (up ? 0.6 : 1.0) + bob, ww * 0.2, h * (up ? 0.3 : 0.34)); // arms
+  ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(sx, fy - h * 0.88 + bob, ww * 0.26, 0, 6.3); ctx.fill(); ctx.fillStyle = '#0a0a0a'; ctx.fillRect(sx - ww * 0.2, fy - h * 0.95 + bob, ww * 0.4, ww * 0.1);
+}
+function drawCrowdSides() { ctx.globalAlpha = 0.38; for (let d = 60; d > 1; d -= 2.6) { for (const s of [-1, 1]) { const x = s * (1.45 + hash(Math.floor(d * 3) * 7 + s) * 0.4), seed = Math.floor(d * 5) + s * 31; dancer(x, d + (G.z % 2.6), 0.22, seed, 'dancer'); } } ctx.globalAlpha = 1; }
+function drawObjects() {
+  const items = []; for (const r of G.rows) { const d = r.z - G.z; if (d > 60 || d < -0.6) continue; for (const o of r.objs) items.push({ d, o, r }); } items.sort((a, b) => b.d - a.d);
+  if (G.z > TUNE.length - 70) { const d = TUNE.length - G.z; for (let i = 0; i < 5; i++) dancer((i - 2) * 0.32, Math.max(0.2, d), 0.24, 700 + i, 'dancer'); const k = sc(Math.max(0.2, d)); ctx.fillStyle = C.acid; ctx.font = `900 ${Math.max(10, 30 * k)}px ui-monospace,monospace`; ctx.textAlign = 'center'; ctx.fillText('YOUR MATES', CX - camX() * 300 * k, gy(Math.max(0.2, d)) - 190 * k); }
+  for (const { d, o, r } of items) { const x = o.amp ? o.x + o.amp * Math.sin(G.t / 60 * o.om + o.ph) : o.x; if (d < 0.2 && d > -0.6) ctx.globalAlpha = 0.85; dancer(x, Math.max(0.02, d), o.w, o.seed, r.kind === 'stool' ? 'stool' : 'dancer'); ctx.globalAlpha = 1; }
+}
+function drawTray() {
+  const n = G.n, sAvg = G.cups.reduce((a, c) => a + c.s, 0) / n, tilt = sAvg * 0.22; const danger = clamp((Math.abs(sAvg) - 0.25) / 0.4, 0, 1);
+  ctx.save(); ctx.translate(CX, 318); ctx.rotate(tilt); ctx.translate(-CX, -318);
+  const tw = n * (CUP_W + CUP_GAP) + 26; ctx.fillStyle = '#2b2d3a'; ctx.fillRect(CX - tw / 2, 318, tw, 14); ctx.fillStyle = '#6b7186'; ctx.fillRect(CX - tw / 2, 318, tw, 3); ctx.fillStyle = '#15151d'; ctx.fillRect(CX - tw / 2 + 4, 332, tw - 8, 8);
+  for (let i = 0; i < n; i++) { const c = G.cups[i], x = cupX(i), top = 318 - 96, bottom = 318; const lvH = 84 * c.lv, surf = bottom - 4 - lvH; const slope = c.s * 26;
+    ctx.fillStyle = 'rgba(10,10,10,.5)'; ctx.fillRect(x - CUP_W / 2, top, CUP_W, 96);
+    if (c.lv > 0.01) { ctx.save(); ctx.beginPath(); ctx.rect(x - CUP_W / 2 + 2, top, CUP_W - 4, 94); ctx.clip(); ctx.fillStyle = C.beer; ctx.beginPath(); ctx.moveTo(x - CUP_W, surf - slope); ctx.lineTo(x + CUP_W, surf + slope); ctx.lineTo(x + CUP_W, bottom); ctx.lineTo(x - CUP_W, bottom); ctx.fill();
+      ctx.fillStyle = C.foam; ctx.beginPath(); ctx.moveTo(x - CUP_W, surf - slope - 7); ctx.lineTo(x + CUP_W, surf + slope - 7); ctx.lineTo(x + CUP_W, surf + slope + 1); ctx.lineTo(x - CUP_W, surf - slope + 1); ctx.fill(); ctx.restore(); }
+    ctx.strokeStyle = Math.abs(c.s) > TUNE.spill ? C.red : 'rgba(220,240,255,.85)'; ctx.lineWidth = 3; ctx.strokeRect(x - CUP_W / 2, top, CUP_W, 96); ctx.fillStyle = C.glass; ctx.fillRect(x - CUP_W / 2 + 4, top + 4, 5, 86); }
+  ctx.restore();
+  if (danger > 0.05) { ctx.strokeStyle = `rgba(255,46,99,${danger * 0.8})`; ctx.lineWidth = 5; ctx.strokeRect(CX - tw / 2 - 6, 212, tw + 12, 134); }
+  for (const q of G.parts) { ctx.fillStyle = C.beer; ctx.fillRect(q.x, q.y, 4, 4); }
+}
+function hud() {
+  ctx.fillStyle = 'rgba(10,10,10,.6)'; ctx.fillRect(0, 0, W, 8); ctx.fillStyle = C.acid; ctx.fillRect(0, 0, W * clamp(G.z / TUNE.length, 0, 1), 8); ctx.fillStyle = C.paper; ctx.font = '900 12px ui-monospace,monospace'; ctx.textAlign = 'left';
+  ctx.fillText(`DRINKS ${Math.round(liquid() / G.n * 100)}%`, 10, 28); ctx.textAlign = 'right'; ctx.fillText(`${Math.round(Math.max(0, TUNE.length - G.z))}M TO THE MATES`, W - 10, 28);
+  ctx.textAlign = 'center'; G.toasts.forEach((t, i) => { ctx.globalAlpha = Math.min(1, t.t / 20); ctx.fillStyle = t.col; ctx.font = '900 18px ui-monospace,monospace'; ctx.fillText(t.m, CX, 230 + i * 22); ctx.globalAlpha = 1; });
+}
+function T(s, y, size, col, x = CX) { ctx.fillStyle = col; ctx.font = `900 ${size}px ui-monospace,Menlo,Consolas,monospace`; ctx.textAlign = 'center'; ctx.fillText(s, x, y); }
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  if (G.state === 'title') { drawBG(); drawFloor(); G.cups = G.cups.length === G.n ? G.cups : Array.from({ length: G.n }, () => ({ lv: 1, s: Math.sin(G.t / 20) * 0.1, ds: 0, k: 45 })); drawTray(); ctx.fillStyle = 'rgba(10,10,10,.6)'; ctx.fillRect(0, 0, W, H);
+    T('RETURN WITH THE DRINKS', 64, 40, C.acid); T('RUNNER R01  PROTOTYPE', 92, 16, C.paper); T('Carry the round through the rave. Steer smoothly. Do not spill the fucking lot.', 126, 14, '#aaa');
+    T(`TAKE  ${G.n}  DRINKS`, 176, 30, C.paper); T(`more drinks = more points, more slosh`, 200, 13, '#aaa'); T('LEFT / RIGHT to choose  ·  SPACE or TAP to go', 232, 14, C.acid); T('STEER  A D / ARROWS / LEFT-RIGHT PADS   P PAUSE   R RESTART   M SOUND', 256, 11, '#778');
+    T('DEMO SCORING ONLY. NO REAL REWARDS.', 280, 11, '#778'); if (G.best) T(`BEST ${G.best.score}  ${G.best.grade}`, 306, 16, C.blue); return; }
+  ctx.save(); if (G.shake > 0) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
+  drawBG(); drawFloor(); drawCrowdSides(); drawObjects(); ctx.restore(); if (G.flash > 0) { ctx.fillStyle = `rgba(255,46,99,${G.flash / 24})`; ctx.fillRect(0, 0, W, H); }
+  drawTray(); hud();
+  if (G.state === 'paused') { ctx.fillStyle = 'rgba(10,10,10,.8)'; ctx.fillRect(0, 0, W, H); T('PAUSED', 180, 56, C.acid); }
+  if (G.state === 'fail') { ctx.fillStyle = 'rgba(10,10,10,.82)'; ctx.fillRect(0, 0, W, H); T('NOT A DROP LEFT.', 150, 48, C.red); T('Your mates are thirsty and disappointed.', 190, 16, C.paper); if (G.card > 50) T('SPACE / TAP TO TRY AGAIN', 250, 18, '#aaa'); }
+  if (G.state === 'done') { const r = G.result; ctx.fillStyle = 'rgba(10,10,10,.85)'; ctx.fillRect(0, 0, W, H); T('BACK WITH THE DRINKS', 52, 30, C.acid); T(r.grade, 150, 90, r.grade === 'S' ? C.acid : C.paper, 130);
+    ctx.textAlign = 'left'; ctx.fillStyle = C.paper; ctx.font = '900 16px ui-monospace,monospace'; [`DELIVERED  ${r.delivered}/${r.n} drinks`, `LIQUID LEFT  ${r.liquidPct}%`, `SMOOTHNESS  ${r.smoothPct}%`, `NEAR MISSES  ${r.near}`, `BUMPS  ${r.bumps}`, `TIME  ${r.secs}s`, `DEMO SCORE  ${r.score}`].forEach((s, i) => ctx.fillText(s, 250, 110 + i * 26));
+    T('Demo scoring is fictional. No discounts or rewards.', 320, 11, '#778'); if (G.card > 50) T('SPACE / TAP FOR TITLE   R RETRY', 340, 13, '#aaa'); }
+}
+
+/* ---------- input ---------- */
+const KMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+addEventListener('keydown', (e) => { if (e.metaKey || e.ctrlKey || e.altKey) return; audioInit(); if (KMAP[e.code] || ['Space', 'Enter', 'Escape', 'KeyP', 'KeyM', 'KeyR'].includes(e.code)) e.preventDefault(); if (!e.repeat) pressed.add(e.code); if (KMAP[e.code]) input[KMAP[e.code]] = true; });
+addEventListener('keyup', (e) => { if (KMAP[e.code]) input[KMAP[e.code]] = false; });
+addEventListener('blur', () => { input.left = input.right = false; if (G.state === 'play') G.state = 'paused'; });
+cv.addEventListener('pointerdown', (e) => { audioInit(); pressed.add('click'); if (e.pointerType === 'mouse' && G.state === 'play') { const r = cv.getBoundingClientRect(); input[(e.clientX - r.left) < r.width / 2 ? 'left' : 'right'] = true; } });
+for (const ev of ['pointerup', 'pointercancel']) addEventListener(ev, (e) => { if (e.pointerType === 'mouse') { input.left = input.right = false; } });
+const padSets = { left: new Set(), right: new Set() };
+document.querySelectorAll('.pad').forEach((el) => { const k = el.dataset.k; const set = (id, on) => { if (on) padSets[k].add(id); else padSets[k].delete(id); input[k] = padSets[k].size > 0; el.classList.toggle('on', input[k]); };
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); audioInit(); el.setPointerCapture(e.pointerId); set(e.pointerId, true); if (G.state === 'title') pressed.add(k === 'left' ? 'padL' : 'padR'); else if (G.state !== 'play') pressed.add('tap'); });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, (e) => set(e.pointerId, false)); el.addEventListener('contextmenu', (e) => e.preventDefault()); });
+if (matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window) document.body.classList.add('touch');
+function fit() {
+  const w = innerWidth, h = innerHeight, portrait = h > w, touch = document.body.classList.contains('touch'); const b = Math.max(60, Math.min(100, Math.round(Math.min(w, h) * (portrait ? 0.22 : 0.24))));
+  document.documentElement.style.setProperty('--b', b + 'px'); let availH = touch && portrait ? h - b - 40 : h; const s = Math.min(w / W, availH / H), cw = Math.floor(W * s), ch = Math.floor(H * s);
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; cv.style.left = Math.floor((w - cw) / 2) + 'px'; cv.style.top = touch && portrait ? '4px' : Math.floor((h - ch) / 2) + 'px';
+  const hint = document.getElementById('hint'); hint.style.display = touch && portrait ? 'block' : 'none'; hint.style.top = 4 + ch + 8 + 'px';
+  const L = document.getElementById('padL'), R = document.getElementById('padR'), y = h - b - (portrait ? 14 : 10); L.style.top = R.style.top = y + 'px'; L.style.left = '12px'; R.style.left = 'auto'; R.style.right = '12px';
+  if (!portrait) { L.style.width = R.style.width = Math.round(b * 1.2) + 'px'; } else { L.style.width = R.style.width = Math.round(b * 1.9) + 'px'; }
+}
+addEventListener('resize', fit); addEventListener('orientationchange', fit); fit();
+
+/* ---------- loop ---------- */
+const q = new URLSearchParams(location.search); if (q.get('drinks')) G.n = clamp(parseInt(q.get('drinks'), 10) || 3, 2, 6);
+let acc = 0, prev = performance.now(), manual = false; const perf = { frames: 0, upd: 0, drw: 0 };
+function frame(now) { if (!manual) { acc += Math.min(0.1, (now - prev) / 1000); while (acc >= DT) { const t0 = performance.now(); update(); perf.upd += performance.now() - t0; acc -= DT; } } prev = now; const t1 = performance.now(); draw(); perf.drw += performance.now() - t1; perf.frames++; requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+// Test/debug hook for the automated checks. No effect on normal play; remove before any production use.
+window.__run = { G, TUNE, input, pressed, update, draw, start, hold(v) { manual = v; }, makeCourse, liquid, perf, resetPerf() { perf.frames = perf.upd = perf.drw = 0; }, trayHalf, W, H };
+})();
+</script>
+</body>
+</html>

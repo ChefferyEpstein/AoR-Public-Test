@@ -1,0 +1,3 @@
+# AoR PUBLIC TEST: not the production site. Please do not index.
+User-agent: *
+Disallow: /

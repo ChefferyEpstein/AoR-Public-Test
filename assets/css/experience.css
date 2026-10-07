@@ -1,0 +1,111 @@
+/* Ace of Raves: "The Deal" homepage experience.
+   Static layout (no JS / reduced motion) first, then html.aor-xp layers the experience on top. */
+
+.aor-hero{display:block;padding:0;min-height:0;background:#fff;color:var(--ink);overflow:clip}
+.aor-stage{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.8fr);gap:48px;align-items:center;padding:clamp(28px,6vw,84px);min-height:calc(100svh - var(--header-h))}
+.aor-poster{width:100%;max-width:520px;height:auto;justify-self:center;grid-column:2;grid-row:1}
+.aor-hero .hero-copy{grid-column:1;grid-row:1}
+.aor-hero .hero-copy>p:not(.eyebrow){color:var(--muted)}
+.aor-hero .hero-copy h1{font-size:clamp(52px,7vw,104px)}
+.aor-haze,.aor-intro,.aor-index,.aor-hint,.aor-strobe{display:none}
+.aor-deck{display:none}
+
+/* ---------- Experience mode ---------- */
+/* Mobile browser bars: 100svh is the viewport WITH the bar, 100lvh without it. The stage is sized to lvh so the dark
+   room always fills the visible screen (overscan below the fold, never a strip of the shop); bottom-anchored copy is
+   lifted by the same amount so it stays above the bar. 0 on desktop, where svh = lvh. */
+html.aor-xp{--aor-bleed:0px}
+@supports (height:100lvh){html.aor-xp{--aor-bleed:calc(100lvh - 100svh)}}
+html.aor-xp.lenis,html.aor-xp.lenis body{height:auto}
+html.aor-xp.lenis.lenis-smooth{scroll-behavior:auto!important}
+html.aor-xp .aor-hero{height:var(--aor-track,340vh);background:transparent}
+html.aor-xp .aor-stage{
+  position:sticky;top:var(--aor-top,var(--header-h));display:block;padding:0;
+  height:calc(100svh + var(--aor-bleed,0px) - var(--aor-top,var(--header-h)));min-height:0;overflow:hidden;
+  background:var(--aor-bg,#fff);color:var(--aor-ink,#f4f4f0);cursor:pointer;
+}
+html.aor-xp .aor-poster{display:none}
+html.aor-xp .aor-haze{display:block;position:absolute;inset:0;width:100%;height:100%;opacity:0}
+html.aor-xp .aor-intro{display:block;position:absolute;left:0;top:0;max-width:none;pointer-events:none}
+
+/* card-corner indices: the brand's own "R + gun finger" index, mirrored like a real card */
+html.aor-xp .aor-index{display:block;position:absolute;width:clamp(30px,3.4vw,52px);height:auto;filter:invert(1);mix-blend-mode:screen;opacity:0;pointer-events:none}
+.aor-index--tl{left:clamp(16px,2.4vw,36px);top:clamp(16px,2.4vw,36px)}
+.aor-index--br{right:clamp(16px,2.4vw,36px);bottom:calc(clamp(16px,2.4vw,36px) + var(--aor-bleed,0px));transform:rotate(180deg)}
+
+html.aor-xp .aor-hero .hero-copy{position:absolute;left:clamp(16px,4vw,64px);bottom:calc(clamp(64px,8vh,96px) + var(--aor-bleed,0px));max-width:430px;z-index:2;cursor:auto}
+html.aor-xp .aor-hero .hero-copy h1{font-size:clamp(44px,5.4vw,84px);margin:10px 0 14px}
+html.aor-xp .aor-hero .hero-copy>p:not(.eyebrow){color:inherit;opacity:.72;max-width:36ch}
+html.aor-xp .aor-hero .button--ghost{color:inherit}
+html.aor-xp .aor-hero .scroll-cue{left:auto;right:clamp(72px,8vw,128px);bottom:calc(clamp(20px,3vh,32px) + var(--aor-bleed,0px));color:inherit;opacity:.6}
+
+.aor-hint{position:absolute;right:clamp(72px,8vw,128px);top:clamp(20px,3vh,32px);z-index:2;background:none;border:0;padding:8px 0;color:inherit;font-size:12px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;opacity:.7}
+html.aor-xp .aor-hint{display:block}
+.aor-hint:hover,.aor-hint:focus-visible{opacity:1;color:var(--accent)}
+[data-hint-touch]{display:none}
+@media (hover:none){[data-hint-pointer]{display:none}[data-hint-touch]{display:inline}}
+
+html.aor-xp .aor-strobe{display:block;position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:3}
+
+/* intro: house lights up while the ident draws the card */
+html.aor-xp .aor-stage[data-phase="intro"] .hero-copy,
+html.aor-xp .aor-stage[data-phase="intro"] .aor-hint,
+html.aor-xp .aor-stage[data-phase="intro"] .scroll-cue{opacity:0}
+
+/* the deck: fixed layer so cards can leave the stage and land in the shop grid */
+html.aor-xp .aor-deck{display:block;position:fixed;inset:0;z-index:40;pointer-events:none;perspective:1600px;visibility:hidden}
+html.aor-xp .aor-deck.is-live{visibility:visible}
+.aor-card{position:absolute;left:0;top:0;transform-style:preserve-3d;will-change:transform,width,height}
+.aor-card__inner{position:absolute;inset:0;transform-style:preserve-3d}
+.aor-card__ace,.aor-card__face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
+.aor-card__ace{background:#fff url(../images/aor-ace.webp) center/100% 100% no-repeat;border:2px solid #0a0a0a;border-radius:calc(var(--w,300px)*.045);box-shadow:0 30px 60px -20px rgba(0,0,0,.6)}
+.aor-card__foil{position:absolute;inset:0;border-radius:inherit;mix-blend-mode:color-dodge;pointer-events:none;
+  background:radial-gradient(circle at var(--fx,50%) var(--fy,40%),rgba(255,255,255,.55),transparent 38%),
+  conic-gradient(from var(--fa,0deg) at var(--fx,50%) var(--fy,40%),#ff5005,#dbba95,#d0bce1,#d6ff00,#ff5005);
+  opacity:var(--foil,0)}
+.aor-card__face{transform:rotateY(180deg);border-radius:var(--r,12px)}
+.aor-card__face>.product-media{position:absolute;left:50%;top:50%;aspect-ratio:auto}
+.aor-card__face{background:#fff}
+.aor-card__print{position:absolute;left:0;top:0;overflow:hidden;background:#fff;transform-origin:50% 50%;pointer-events:none}
+.aor-card__art{position:absolute;left:0;top:0;max-width:none;object-fit:cover;transform-origin:0 0}
+/* the shop heading passes in front of the cards as they are dealt down onto the grid */
+html.aor-xp #shop .section-heading,html.aor-xp #shop .collection-intro{position:relative;z-index:41}
+.aor-card__face--burn{background:#0a0a0a;color:var(--accent);display:grid;place-items:center;font-weight:900;letter-spacing:.2em}
+
+/* products stay hidden until their card lands on them */
+html.aor-xp.aor-dealing #products .product-media{opacity:0}
+
+/* header dims with the house lights: hero.js sets these three variables every frame from the same progress as the stage
+   background, so there is deliberately no CSS transition here (a timer would be a second clock). */
+html.aor-xp .site-header{background:var(--aor-hdr-bg,rgba(244,244,240,.94));color:var(--aor-hdr-ink,#0a0a0a);border-color:var(--aor-hdr-line,#d8d8d0)}
+
+@media(max-width:900px){
+  .aor-stage{grid-template-columns:1fr}
+  .aor-poster{grid-column:1;grid-row:2;max-width:380px}
+  html.aor-xp .aor-hero .hero-copy{left:16px;right:16px;bottom:calc(72px + var(--aor-bleed,0px));max-width:none}
+  html.aor-xp .aor-hero .hero-copy>p:not(.eyebrow){display:none}
+  html.aor-xp .aor-hero .hero-actions{margin-top:16px}
+  html.aor-xp .aor-hero .scroll-cue{right:auto;left:16px;bottom:calc(20px + var(--aor-bleed,0px))}
+  .aor-hint{right:16px;top:12px}
+  .aor-index--tl{display:none!important}
+}
+
+/* Controls and precise shop hand-off. */
+.aor-motion{display:none}
+html.aor-xp .aor-motion{display:block;position:absolute;left:clamp(16px,4vw,64px);top:24px;z-index:45;padding:10px 12px;border:1px solid currentColor;background:transparent;color:var(--aor-ink,#0a0a0a);font:11px monospace;text-transform:uppercase;letter-spacing:.08em;cursor:pointer}
+html.aor-xp .aor-index--tl{top:90px}
+html.aor-xp .aor-hero .hero-copy{max-width:min(34vw,430px)}
+html.aor-xp .aor-stage[data-phase="intro"]{--aor-ink:#0a0a0a}
+html.aor-xp .aor-stage[data-phase="intro"] .hero-copy,html.aor-xp .aor-stage[data-phase="intro"] .scroll-cue{opacity:1}
+#shop,#products{scroll-margin-top:90px}
+#shop .section-heading .eyebrow{font-family:monospace;letter-spacing:.2em}
+#shop .product-meta{border-top:1px solid var(--line);margin-top:16px}
+:focus-visible{outline:2px solid currentColor;outline-offset:5px}
+@media(max-width:900px){html.aor-xp .aor-hero .hero-copy{max-width:none}.aor-hint{top:66px}.aor-motion{top:16px!important}}
+@media(max-height:650px) and (min-width:901px){html.aor-xp .aor-hero .hero-copy>p:not(.eyebrow){display:none}}
+
+html.aor-xp .aor-deck{overflow:clip}
+
+
+.feature-split>*{min-width:0}.feature-panel strong{font-size:clamp(48px,12vw,190px)}
+
