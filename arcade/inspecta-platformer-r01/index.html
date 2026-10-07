@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en-GB">
-<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · M05E.1 CANDIDATE · src ba8fd3a">
+<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · M05E.1 CANDIDATE · src fb29ec4">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 
@@ -106,50 +106,55 @@ const R = (x, col, a, b, c, d) => { x.fillStyle = PAL[col]; x.fillRect(a, b, c, 
 const S_HEAD = px(['...NNNNNN...', '..NNNNNNNN..', '..aaaaaaaNNN', '..SsssssssN.', '..SssswksSs.', '...ssssssSss', '...sssssSSs.', '....SSSSSS..']);   // faces RIGHT: cap + brim, nose, eye
 const S_BODY = px(['...nnnnnnn...', '..nnnnnnnnnn.', '.nnnnnnnnaann', 'nnnnnnnnnaann', 'NNnnnnnnnnnN.', '.NNnnnnnnnN..', '..NNNNNNNN...']);       // hunched trench coat, tail trailing
 const SHOE_FLAT = px(['.kkkkkk...........', 'kwwwwwwkkk........', 'kwwwwwwwwwkkkk....', 'kwwaawwwwwwwwwkk..', 'kwwwwaawwwwwwwwwk.', 'kwwwwwwwwwwwwwwwwk', 'kwwwwwwwwwwwwwwkkk', 'aaaaaaaaaaaaaaaaaa', 'AAAAAAAAAAAAAAAAAA']);   // 18 x 9 chunky trainer: outline, laces, toe cap. The star of the show
-function shearUp(src, rise) { const w = src.width, h = src.height, top = rise(w - 1); return mk(w, h + top, (x) => { for (let c = 0; c < w; c++) x.drawImage(src, c, 0, 1, h, c, top - rise(c), 1, h); }); }   // lifts the toe end column by column, heel stays on the ground
-const S_SHOE = [SHOE_FLAT, shearUp(SHOE_FLAT, (c) => (c < 8 ? 0 : Math.min(2, Math.floor((c - 6) / 4)))), shearUp(SHOE_FLAT, (c) => (c < 6 ? 0 : Math.min(4, Math.floor((c - 4) / 3))))];   // [flat, toe up a little, toe up a lot]
+const S_SHOE = SHOE_FLAT;   // ONE rigid sprite. It is only ever translated while walking: never scaled, squashed, stretched or swapped for a bent variant.
 const SOLE = px(['kkkkkkkkkkkk', 'kakakakakaka', 'kkkkkkkkkkkk']); // the print a stomp leaves
 function leg(ctx2, x0, y0, x1, y1, col) { ctx2.fillStyle = PAL[col]; const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) ctx2.fillRect(Math.round(x0 + (x1 - x0) * i / n) - 1, Math.round(y0 + (y1 - y0) * i / n), 3, 2); }
-/* WALK CYCLE (draw-only: it reads how far he has travelled, never writes physics). Easy to refine: everything is in this table.
-   SHOES drive the motion: short legs, huge shoes, a stompy cartoon stride. One foot's path over a 6-phase step, in px from the body centre (x: + is forward, y: - is up);
-   the other foot runs the same path half a cycle later.
-     0 HEEL STRIKE (reaching far ahead, shoe SQUASHES, toe up)   1 planted, loading   2 planted, pushing back
-     3 toe-off: trailing foot LAGS far behind and lifts   4 swing: shoe high under the body, stretches   5 swing: shoe reaches forward, toe up.
-   One phase lasts `pxPerPhase` px of travel; the planted phases (0->1->2) move back by exactly that much, so a planted shoe does not skate.
-   Per-foot extras: sq = squash (0..1, planted contact), st = stretch (0..1, mid swing), tilt = toe-up level 0..2 (index into S_SHOE). */
-const GAIT = { pxPerPhase: 12, path: [[13, 0], [1, 0], [-11, 0], [-17, -3], [0, -12], [14, -8]], bob: [1, 0, 0, 1, 0, 0], lean: 2, squashPhases: 1.2, hipY: -8,
-  jumpUp: [[13, -6, 0, 0, 2], [-11, -10, 0, 0, 0]], jumpDown: [[11, -3, 0, 0, 1], [-12, -5, 0, 0, 0]], idle: [[7, 0, 0, 0, 0], [-7, 0, 0, 0, 0]], stomp: [[13, -1, 1, 0, 0], [-13, -1, 1, 0, 0]] };
-function gaitAt(dist) { const n = GAIT.path.length, T = ((dist / GAIT.pxPerPhase) % n + n) % n;
-  const foot = (tt) => { tt = ((tt % n) + n) % n; const i = Math.floor(tt), f = tt - i, a = GAIT.path[i], b = GAIT.path[(i + 1) % n], swing = i >= 3, e = swing ? f * f * (3 - 2 * f) : f;   // swing phases snap (ease), planted phases are linear
-    const sq = tt < GAIT.squashPhases ? 1 - tt / GAIT.squashPhases : 0, st = swing ? Math.sin((tt - 3) / 3 * Math.PI) : 0, tilt = tt < 0.5 ? 2 : tt < 1 ? 1 : tt < 4 ? 0 : tt < 5 ? 1 : 2;
-    return [Math.round(a[0] + (b[0] - a[0]) * e), Math.round(a[1] + (b[1] - a[1]) * e), sq, st, tilt]; };
-  const b0 = GAIT.bob[Math.floor(T)], b1 = GAIT.bob[(Math.floor(T) + 1) % n]; return { A: foot(T), B: foot(T + n / 2), bob: Math.round(b0 + (b1 - b0) * (T - Math.floor(T))), arm: Math.round(Math.cos(T / n * 6.2832) * 2) }; }
+/* WALK CYCLE: a silly high step. Draw-only: it reads how far he has travelled and never writes physics. Everything is in this table.
+   The SHOES do the acting, and they are RIGID (the sprite is only translated: no squash, stretch, scale or tilt). Legs are short links hip -> ankle.
+   One foot's path over one stride is a short list of staged keyframes (no circles, no orbit): PLANTED (the ground carries it back under him),
+   then UP (sharp, nearly vertical lift), HIGH + FORWARD (travels forward at height), EXTENSION (hangs out far ahead for a beat), then PLANT (drops
+   almost straight down onto the ground ahead). The other foot runs the same path half a stride later. Per keyframe: [u, x, y, ease to the NEXT key].
+   u = fraction of one stride (1.0 = `stride` px of travel). x: + is forward of the body centre, y: - is up (px).                                      */
+const GAIT = { stride: 64, hipY: -8, lean: 2, bobDip: 1,
+  keys: [[0.00, 16, 0, 'lin'],      // planted ahead of him; the ground carries it back as he walks over it
+         [0.50, -16, 0, 'out'],     // still planted, now far behind him (trailing foot lags)
+         [0.58, -17, -14, 'lin'],   // UP: sharp near-vertical lift
+         [0.70, 2, -16, 'lin'],     // HIGH + FORWARD: swinging through at height
+         [0.80, 22, -17, 'lin'],    // EXTENSION: absurdly far ahead, still high
+         [0.86, 23, -16, 'in'],     // ...hold for a beat...
+         [1.00, 16, 0, 'lin']],     // PLANT: drops almost vertically onto the ground ahead
+  jumpUp: [[13, -6], [-11, -10]], jumpDown: [[11, -3], [-12, -5]], idle: [[7, 0], [-7, 0]], stomp: [[13, -1], [-13, -1]] };
+const EASE = { lin: (f) => f, out: (f) => 1 - (1 - f) * (1 - f), in: (f) => f * f };
+function footAt(u) { u = ((u % 1) + 1) % 1; const K = GAIT.keys; let i = K.length - 1; while (K[i][0] > u) i--; const a = K[i], b = i + 1 < K.length ? K[i + 1] : [1, K[0][1], K[0][2]], f = (u - a[0]) / (b[0] - a[0]), e = EASE[a[3]](f);
+  return [Math.round(a[1] + (b[1] - a[1]) * e), Math.round(a[2] + (b[2] - a[2]) * e)]; }
+function gaitAt(dist) { const u = dist / GAIT.stride, ph = (((u * 2) % 1) + 1) % 1;                  // body: a single tiny dip as each shoe lands (weight), nothing else
+  return { A: footAt(u), B: footAt(u + 0.5), bob: ph > 0.88 || ph < 0.1 ? GAIT.bobDip : 0, arm: Math.round(Math.cos(u * 6.2832) * 2) }; }
 
-const adj = (f, dx, dy) => [f[0] + dx, f[1] + dy, f[2], f[3], f[4]];
+const adj = (f, dx, dy) => [f[0] + dx, f[1] + dy];
 function drawInspecta(x, y, st) { // x,y = player's body top-left. Everything here is draw-only: it never reads or writes physics state.
   const bx = Math.round(x + 5), by = Math.round(y + 14), beat = st.beat, tier = st.tier, on = beat < 0.5;
   const moving = st.ground && Math.abs(st.vx) > 0.3;
   let A = GAIT.idle[0], B = GAIT.idle[1], bDy = 0, bDx = 0, hDy = Math.floor(st.t / 36) % 2, hDx = 0, gDx = 0, gDy = 0, flip = false;   // gDx/gDy = forward arm swing
   if (st.stomp > 0) { [A, B] = GAIT.stomp; hDy = 1; gDy = -2; }                                 // landed on a head: toes spread, flat, ridiculous
   else if (!st.ground) { [A, B] = st.vy < 0 ? GAIT.jumpUp : GAIT.jumpDown; gDy = st.vy < 0 ? -3 : 1; hDx = 1; }
-  else if (moving) { const g = gaitAt(st.gait != null ? st.gait : st.t * 1.7); A = g.A; B = g.B; bDy = g.bob; hDy = g.bob; hDx = GAIT.lean; gDx = g.arm; }   // steady lean, no head wobble
+  else if (moving) { const g = gaitAt(st.gait != null ? st.gait : st.t * 1.7); A = g.A; B = g.B; bDy = g.bob; hDy = 0; hDx = GAIT.lean; gDx = g.arm; }   // steady lean, no head wobble
   const pulse = Math.pow(1 - beat, 2), sw = Math.sin(beat * 6.2832);                          // beat-locked: 1 right on the beat, easing out
   if (tier >= 1) hDy += beat < 0.25 ? 1 : 0;                                                    // head bob on the beat
   if (tier >= 2) { if (!moving && st.ground) { if (on) A = adj(A, 0, -3); else B = adj(B, 0, -3); } else if (moving) { bDy -= Math.round(pulse * (tier >= 4 ? 3 : tier >= 3 ? 2 : 1.4)); hDy += Math.round(pulse); } }   // foot taps / bouncy stride
   if (tier >= 3) { bDx += st.ground ? Math.round(sw) : 0; hDx += st.ground ? Math.round(sw) : 0; gDx += Math.round(sw * 2); gDy += Math.round(sw * 2); }   // shoulder sway, arm swing
   if (tier >= 4) { if (st.ground && !moving) { flip = Math.floor(st.t / 29) % 4 >= 2; bDy += on ? -1 : 0; A = adj(A, on ? 3 : 0, 0); B = adj(B, on ? -3 : 0, 0); hDy += on ? -1 : 1; }
     else if (moving) { A = adj(A, 1, 0); B = adj(B, -1, 0); hDy += Math.round(pulse * 2); gDy -= Math.round(pulse * 3); } }   // full send: stride stretched, head nodding, arm pumping
-  if (st.hurt) { A = [-5, -5, 0, 0, 0]; B = [-8, -8, 0, 0, 0]; hDx = -2; hDy = -1; gDy = -3; }
+  if (st.hurt) { A = [-5, -5]; B = [-8, -8]; hDx = -2; hDy = -1; gDy = -3; }
   ctx.save(); ctx.translate(bx, by); if ((st.face < 0) !== flip) ctx.scale(-1, 1);
   const hipY = GAIT.hipY + bDy;
-  const shoe = (f) => { const spr = S_SHOE[f[4] || 0], sq = f[2] || 0, stt = f[3] || 0, w = spr.width + Math.round(2 * sq + 3 * stt), h = spr.height - Math.round(1.4 * sq + 0.8 * stt);   // planted shoe squashes (wider, flatter); swinging shoe stretches (longer, thinner)
-    ctx.drawImage(spr, f[0] - 6, f[1] - h, w, h); };
+  const shoe = (f) => ctx.drawImage(S_SHOE, f[0] - 6, f[1] - S_SHOE.height);                   // rigid: native size, translated only
   const legTo = (ox, f, col) => leg(ctx, ox + bDx, hipY, f[0], f[1] - 8, col);                       // short legs: hip to the ankle at the back of the shoe
-  legTo(-1, B, 'f'); shoe(B);                                   // far leg + shoe
+  const aBehind = A[1] < -4 && A[0] < 15;                                                        // a near shoe passing HIGH through the body zone is tucked behind him so the face stays readable
+  legTo(-1, B, 'f'); shoe(B); if (aBehind) { legTo(1, A, 'h'); shoe(A); }                         // far leg + shoe (and a high-passing near one)
   ctx.drawImage(S_BODY, -7 + bDx, hipY - 7);                                                      // hunched coat
   ctx.drawImage(S_HEAD, -2 + bDx + hDx, hipY - 14 + hDy);                                         // head leads the way
   ctx.fillStyle = PAL.n; ctx.fillRect(4 + bDx, hipY - 6 + gDy, 5 + gDx, 2); ctx.fillStyle = PAL.s; ctx.fillRect(9 + bDx + gDx, hipY - 6 + gDy, 2, 2);   // forward arm + hand (empty: no magnifier)
-  legTo(1, A, 'h'); shoe(A);                                     // near leg + shoe
+  if (!aBehind) { legTo(1, A, 'h'); shoe(A); }                                                    // near leg + shoe
   if (tier >= 3) for (let k = 0; k < (tier >= 4 ? 3 : 2); k++) { const q = (st.t / 45 + k / 3) % 1; ctx.fillStyle = q < 0.8 ? PAL.a : PAL.f; const nx = Math.round(-2 + (k - 1) * 7 + Math.sin(q * 6 + k) * 2), ny = Math.round(hipY - 16 - q * 14); ctx.fillRect(nx, ny + 3, 3, 2); ctx.fillRect(nx + 2, ny - 1, 1, 5); ctx.fillRect(nx + 3, ny - 1, 2, 1); }   // little music notes drift up
   ctx.restore();
 }
@@ -425,11 +430,20 @@ function bossDamage() { return 18 + 2 * G.wavs; }
    - RECOVERING is a fixed, readable "getting up" beat: no damage to him, no damage to you, and a landing on his head is shrugged off.
    - REPOSITIONING walks him to a spot with a real run-up (>= RUNUP_ROOM) on the side he committed to, so a charge can never be a short bonk.
    - A landing on his head in any state but DAZED just shoves you off (SHRUG). Riding his head is not a safe place to stand. */
-const RUNUP_ROOM = 150, RUNUP_MIN = 100, STOMPS_PER_DAZE = 2, RECOVER_FRAMES = 54, BOSS_LEFT = T + 1, BOSS_RIGHT = 19 * T - 1 - BW;
+const RUNUP_ROOM = 150, RUNUP_MIN = 100, STOMPS_PER_DAZE = 1, RECOVER_FRAMES = 54, BOSS_LEFT = T + 1, BOSS_RIGHT = 19 * T - 1 - BW;
 const bossRoom = (b, d) => (d > 0 ? BOSS_RIGHT - b.x : b.x - BOSS_LEFT);      // free run in direction d
 function bossTo(b, st, t) { b.st = st; b.t = t; if (st === 'repositioning') { // commit to a side now; walk to where that side has a proper run-up
     const side = Math.sign(G.p.x + 5 - (b.x + b.w / 2)) || b.face || -1; b.side = side; b.face = side; b.goalX = bossRoom(b, side) >= RUNUP_ROOM ? b.x : Math.max(BOSS_LEFT, Math.min(BOSS_RIGHT, (side > 0 ? BOSS_RIGHT : BOSS_LEFT) - side * RUNUP_ROOM)); }
   if (st === 'dazed') b.stompsLeft = STOMPS_PER_DAZE; if (b.stats) b.stats.entered[st] = (b.stats.entered[st] || 0) + 1; }
+/* A head landing never leaves you standing on him. You are thrown UP and AWAY (stun = no steering while you fly, so the separation is physical, not a timer).
+   Away = the side you are already on; if you are nearly dead centre, the way you were moving; if that side is wall (he is wall-daze'd, you would just drop back onto him), the side with room. */
+const EJECT_STOMP = { vy: -6.4, vx: 2.9, stun: 26 }, EJECT_SHRUG = { vy: -5.2, vx: 2.5, stun: 16 };
+function ejectFromBoss(b, p, E) {
+  const bc = b.x + b.w / 2, pc = p.x + p.w / 2, mid = (BOSS_LEFT + BOSS_RIGHT + b.w) / 2; let d = Math.abs(pc - bc) < 6 ? (p.vx > 0.2 ? 1 : p.vx < -0.2 ? -1 : (bc > mid ? -1 : 1)) : Math.sign(pc - bc);
+  const room = (dir) => (dir > 0 ? BOSS_RIGHT + b.w - (p.x + p.w) : p.x - BOSS_LEFT);
+  if (room(d) < 90 && room(-d) > room(d)) d = -d;
+  p.vy = E.vy; p.vx = d * E.vx; p.stun = E.stun; p.onGround = false; p.face = d; p.coyote = 0; p.buf = 0; b.stats.ejects = (b.stats.ejects || 0) + 1; b.lastEject = d;
+}
 function updateBoss() {
   const b = G.boss, p = G.p; if (!b) return; b.t--; b.cool = Math.max(0, b.cool - 1); b.shake = Math.max(0, b.shake - 1);
   const windup = Math.round(Math.min(90, 50 + G.wavs * 2) * (b.comp < 50 ? 0.8 : 1)), speed = b.comp < 50 ? 3.1 : 2.5;
@@ -449,11 +463,13 @@ function updateBoss() {
   if (b.st === 'dance' || b.st === 'gone' || G.respawn > 0 || G.state !== 'play') return;
   const over = p.x + p.w > b.x && p.x < b.x + b.w && p.y + p.h > b.y && p.y < b.y + b.h, prevBottom = p.y + p.h - p.vy;
   if (p.x + p.w + 4 > b.x && p.x - 4 < b.x + b.w && p.y + p.h > b.y && p.y < b.y + b.h && p.vy > 0 && prevBottom <= b.y + 8) {   // landed on his head
-    p.vy = input.jump ? -5.4 : -4.4; p.onGround = false; SFX.stomp();
-    if (b.st === 'dazed') {
-      if (b.cool <= 0 && b.stompsLeft > 0) { const dmg = bossDamage(); b.comp = Math.max(0, b.comp - dmg); b.cool = 40; b.stompsLeft--; b.stats.stomps++; G.score += 500; G.shake = 8; burst(b.x + 14, b.y, PAL.a, 16); toast(`BASS DROP -${dmg}`, PAL.a);
-        if (b.comp <= 0) { b.st = 'dance'; b.danceT = 0; SFX.clear(); toast('HE CAN\'T RESIST', PAL.a); } }
-    } else if (b.st !== 'intro') { b.stats.shrugs++; p.stun = 10; p.vx = (p.x + 5 < b.x + b.w / 2 ? -1 : 1) * 2.4; toast(b.st === 'recovering' ? 'HE\'S GETTING UP. WAIT FOR THE WALL.' : 'HE SHRUGS YOU OFF. USE THE WALL.', PAL.w); }
+    SFX.stomp();
+    if (b.st === 'dazed') {   // ONE stomp per daze: the damage lands, he throws you clean off, and he is up again. There is nothing left to stand on.
+      const dmg = bossDamage(); b.comp = Math.max(0, b.comp - dmg); b.cool = 40; b.stompsLeft = 0; b.stats.stomps++; G.score += 500; G.shake = 8; burst(b.x + 14, b.y, PAL.a, 16); toast(`BASS DROP -${dmg}`, PAL.a);
+      ejectFromBoss(b, p, EJECT_STOMP);
+      if (b.comp <= 0) { b.st = 'dance'; b.danceT = 0; SFX.clear(); toast('HE CAN\'T RESIST', PAL.a); } else bossTo(b, 'recovering', RECOVER_FRAMES);
+    } else if (b.st !== 'intro') { b.stats.shrugs++; ejectFromBoss(b, p, EJECT_SHRUG); toast(b.st === 'recovering' ? 'HE\'S GETTING UP. WAIT FOR THE WALL.' : 'HE SHRUGS YOU OFF. USE THE WALL.', PAL.w); }
+    else ejectFromBoss(b, p, EJECT_SHRUG);
   } else if (over && (b.st === 'repositioning' || b.st === 'windup' || b.st === 'charge')) hurtPlayer(b.x + b.w / 2);   // awake and moving: he hurts. Dazed or getting up: he does not.
 }
 
@@ -676,7 +692,7 @@ function frame(now) { if (!manual) { acc += Math.min(0.1, (now - prev) / 1000); 
   const t1 = performance.now(); draw(); perf.drw += performance.now() - t1; perf.frames++; requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
 // Test/debug hook for the automated checks. No effect on normal play; remove before any production use.
-window.__plat = { rewardFor, showReward, finish, RW, livePointers, bossTo, RUNUP_ROOM, RUNUP_MIN, STOMPS_PER_DAZE, G, LEVELS, ALL_LEVELS, input, pressed, update, draw, stepPlayer, newPlayer, tileAt, isSolid, loadLevel, begin, resetRun, hurtPlayer, hold(v) { manual = v; }, perf, waveTier, bossDamage, resetPerf() { perf.frames = perf.upd = perf.drw = 0; }, GAIT, sprites: { CHAV, S_SHOE, BOUNCER, S_WAV, S_MAG, drawInspecta, gaitAt, shoeSize: [S_SHOE[0].width, S_SHOE[0].height], tilts: S_SHOE.length }, T, VW, VH, ctx, PW, PH, mags: magTotal, wavs: wavTotal };
+window.__plat = { ejectFromBoss, EJECT_STOMP, rewardFor, showReward, finish, RW, livePointers, bossTo, RUNUP_ROOM, RUNUP_MIN, STOMPS_PER_DAZE, G, LEVELS, ALL_LEVELS, input, pressed, update, draw, stepPlayer, newPlayer, tileAt, isSolid, loadLevel, begin, resetRun, hurtPlayer, hold(v) { manual = v; }, perf, waveTier, bossDamage, resetPerf() { perf.frames = perf.upd = perf.drw = 0; }, GAIT, sprites: { CHAV, S_SHOE, BOUNCER, S_WAV, S_MAG, drawInspecta, gaitAt, shoeSize: [S_SHOE.width, S_SHOE.height], footAt }, T, VW, VH, ctx, PW, PH, mags: magTotal, wavs: wavTotal };
 })();
 </script>
 </body>
