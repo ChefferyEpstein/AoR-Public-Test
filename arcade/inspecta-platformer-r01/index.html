@@ -1,17 +1,17 @@
 <!doctype html>
 <html lang="en-GB">
-<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · src f98e390">
+<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · src ce29540">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
 <meta name="theme-color" content="#0a0a0a">
 <title>INSPECTA platformer R01 · prototype · PUBLIC TEST</title>
 <style>
   html,body{margin:0;height:100%;background:#0a0a0a;overflow:hidden;overscroll-behavior:none;touch-action:none;
     user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;font-family:ui-monospace,Menlo,Consolas,monospace}
-  #c{position:fixed;display:block;image-rendering:pixelated;image-rendering:crisp-edges;background:#000}
+  #c{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;position:fixed;display:block;image-rendering:pixelated;image-rendering:crisp-edges;background:#000}
   .pad{position:fixed;display:none;width:var(--b);height:var(--b);border:3px solid #d6ff00;border-radius:14px;background:rgba(10,10,10,.5);
-    color:#d6ff00;font:900 calc(var(--b)*.26)/1 inherit;align-items:center;justify-content:center;letter-spacing:.05em;touch-action:none;z-index:3}
+    color:#d6ff00;font:900 calc(var(--b)*.26)/1 inherit;align-items:center;justify-content:center;letter-spacing:.05em;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;z-index:3}
   .pad.on{background:rgba(214,255,0,.4)}
   body.touch .pad{display:flex}
   body.reward .pad,body.reward #hint{display:none!important}
@@ -109,20 +109,24 @@ const SHOE_FLAT = px(['.kkkkkk...........', 'kwwwwwwkkk........', 'kwwwwwwwwwkkk
 const S_SHOE = SHOE_FLAT;   // ONE rigid sprite. It is only ever translated while walking: never scaled, squashed, stretched or swapped for a bent variant.
 const SOLE = px(['kkkkkkkkkkkk', 'kakakakakaka', 'kkkkkkkkkkkk']); // the print a stomp leaves
 function leg(ctx2, x0, y0, x1, y1, col) { ctx2.fillStyle = PAL[col]; const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) ctx2.fillRect(Math.round(x0 + (x1 - x0) * i / n) - 1, Math.round(y0 + (y1 - y0) * i / n), 3, 2); }
-/* WALK CYCLE: a silly high step. Draw-only: it reads how far he has travelled and never writes physics. Everything is in this table.
-   The SHOES do the acting, and they are RIGID (the sprite is only translated: no squash, stretch, scale or tilt). Legs are short links hip -> ankle.
-   One foot's path over one stride is a short list of staged keyframes (no circles, no orbit): PLANTED (the ground carries it back under him),
-   then UP (sharp, nearly vertical lift), HIGH + FORWARD (travels forward at height), EXTENSION (hangs out far ahead for a beat), then PLANT (drops
-   almost straight down onto the ground ahead). The other foot runs the same path half a stride later. Per keyframe: [u, x, y, ease to the NEXT key].
-   u = fraction of one stride (1.0 = `stride` px of travel). x: + is forward of the body centre, y: - is up (px).                                      */
-const GAIT = { stride: 64, hipY: -8, lean: 2, bobDip: 1,
-  keys: [[0.00, 16, 0, 'lin'],      // planted ahead of him; the ground carries it back as he walks over it
-         [0.50, -16, 0, 'out'],     // still planted, now far behind him (trailing foot lags)
-         [0.58, -17, -14, 'lin'],   // UP: sharp near-vertical lift
-         [0.70, 2, -16, 'lin'],     // HIGH + FORWARD: swinging through at height
-         [0.80, 22, -17, 'lin'],    // EXTENSION: absurdly far ahead, still high
-         [0.86, 23, -16, 'in'],     // ...hold for a beat...
-         [1.00, 16, 0, 'lin']],     // PLANT: drops almost vertically onto the ground ahead
+/* WALK CYCLE: a silly stomp. Draw-only: it reads how far he has travelled and never writes physics. Everything is in this table.
+   THE SHOES DO ALL THE ACTING. They are RIGID: one sprite, only translated (never scaled, squashed, stretched, rotated or swapped).
+   The legs are NOT animated: each shoe just carries a short, fixed-length trouser stub (STUB px) on top, and the body hides the rest. There is no hip-to-shoe line,
+   so nothing can stretch or swing round.
+   One shoe's path over one stride is a RECTANGLE-ish staircase, never a curve: PLANTED (the ground carries it back under him) -> UP (straight up) -> FORWARD (straight
+   across, at that height) -> STOMP (straight down, ahead) -> planted again. The other shoe runs the same path half a stride later.
+   The lift is capped so a shoe never rises above the top of the coat (LIFT <= coat height above the shoe tops): it can never pass over his head.
+   Per keyframe: [u, x, y, ease to the NEXT key]. u = fraction of one stride (1.0 = `stride` px of travel). x: + is forward of the body centre, y: - is up (px). */
+const GAIT = { stride: 64, hipY: -8, lean: 2, bobDip: 1, stub: 3, lift: 6,
+  keys: [[0.00, 18, 0, 'lin'],      // A  PLANTED ahead; the ground carries it back as he walks over it
+         [0.50, -14, 0, 'lin'],     //    ...now planted behind him
+         [0.54, -14, 0, 'out'],     //    brief hold, then
+         [0.61, -14, -6, 'lin'],    // B  UP: straight up, nothing else moves
+         [0.66, -14, -6, 'lin'],    //    hold at the top
+         [0.84, 18, -6, 'lin'],     // C/D FORWARD at that height: straight across, far ahead
+         [0.88, 18, -6, 'in'],      //    hang there for a beat
+         [0.96, 18, 0, 'lin'],      // E  STOMP: straight down onto the ground ahead
+         [1.00, 18, 0, 'lin']],     //    planted
   jumpUp: [[13, -6], [-11, -10]], jumpDown: [[11, -3], [-12, -5]], idle: [[7, 0], [-7, 0]], stomp: [[13, -1], [-13, -1]] };
 const EASE = { lin: (f) => f, out: (f) => 1 - (1 - f) * (1 - f), in: (f) => f * f };
 function footAt(u) { u = ((u % 1) + 1) % 1; const K = GAIT.keys; let i = K.length - 1; while (K[i][0] > u) i--; const a = K[i], b = i + 1 < K.length ? K[i + 1] : [1, K[0][1], K[0][2]], f = (u - a[0]) / (b[0] - a[0]), e = EASE[a[3]](f);
@@ -147,14 +151,11 @@ function drawInspecta(x, y, st) { // x,y = player's body top-left. Everything he
   if (st.hurt) { A = [-5, -5]; B = [-8, -8]; hDx = -2; hDy = -1; gDy = -3; }
   ctx.save(); ctx.translate(bx, by); if ((st.face < 0) !== flip) ctx.scale(-1, 1);
   const hipY = GAIT.hipY + bDy;
-  const shoe = (f) => ctx.drawImage(S_SHOE, f[0] - 6, f[1] - S_SHOE.height);                   // rigid: native size, translated only
-  const legTo = (ox, f, col) => leg(ctx, ox + bDx, hipY, f[0], f[1] - 8, col);                       // short legs: hip to the ankle at the back of the shoe
-  const aBehind = A[1] < -4 && A[0] < 15;                                                        // a near shoe passing HIGH through the body zone is tucked behind him so the face stays readable
-  legTo(-1, B, 'f'); shoe(B); if (aBehind) { legTo(1, A, 'h'); shoe(A); }                         // far leg + shoe (and a high-passing near one)
+  const shoe = (f, col) => { ctx.drawImage(S_SHOE, f[0] - 6, f[1] - S_SHOE.height); ctx.fillStyle = PAL[col]; ctx.fillRect(f[0] - 1, f[1] - S_SHOE.height - GAIT.stub, 4, GAIT.stub); };   // rigid shoe (translated only) + a fixed 3px trouser stub on top
   ctx.drawImage(S_BODY, -7 + bDx, hipY - 7);                                                      // hunched coat
   ctx.drawImage(S_HEAD, -2 + bDx + hDx, hipY - 14 + hDy);                                         // head leads the way
   ctx.fillStyle = PAL.n; ctx.fillRect(4 + bDx, hipY - 6 + gDy, 5 + gDx, 2); ctx.fillStyle = PAL.s; ctx.fillRect(9 + bDx + gDx, hipY - 6 + gDy, 2, 2);   // forward arm + hand (empty: no magnifier)
-  if (!aBehind) { legTo(1, A, 'h'); shoe(A); }                                                    // near leg + shoe
+  shoe(B, 'f'); shoe(A, 'h');                                                                      // both shoes in front of the coat; they never rise above it
   if (tier >= 3) for (let k = 0; k < (tier >= 4 ? 3 : 2); k++) { const q = (st.t / 45 + k / 3) % 1; ctx.fillStyle = q < 0.8 ? PAL.a : PAL.f; const nx = Math.round(-2 + (k - 1) * 7 + Math.sin(q * 6 + k) * 2), ny = Math.round(hipY - 16 - q * 14); ctx.fillRect(nx, ny + 3, 3, 2); ctx.fillRect(nx + 2, ny - 1, 1, 5); ctx.fillRect(nx + 3, ny - 1, 2, 1); }   // little music notes drift up
   ctx.restore();
 }
@@ -434,7 +435,7 @@ const RUNUP_ROOM = 150, RUNUP_MIN = 100, STOMPS_PER_DAZE = 1, RECOVER_FRAMES = 5
 const bossRoom = (b, d) => (d > 0 ? BOSS_RIGHT - b.x : b.x - BOSS_LEFT);      // free run in direction d
 function bossTo(b, st, t) { b.st = st; b.t = t; if (st === 'repositioning') { // commit to a side now; walk to where that side has a proper run-up
     const side = Math.sign(G.p.x + 5 - (b.x + b.w / 2)) || b.face || -1; b.side = side; b.face = side; b.goalX = bossRoom(b, side) >= RUNUP_ROOM ? b.x : Math.max(BOSS_LEFT, Math.min(BOSS_RIGHT, (side > 0 ? BOSS_RIGHT : BOSS_LEFT) - side * RUNUP_ROOM)); }
-  if (st === 'dazed') b.stompsLeft = STOMPS_PER_DAZE; if (b.stats) b.stats.entered[st] = (b.stats.entered[st] || 0) + 1; }
+  if (st === 'dazed') { b.stompsLeft = STOMPS_PER_DAZE; b.dazeId = (b.dazeId || 0) + 1; } if (b.stats) b.stats.entered[st] = (b.stats.entered[st] || 0) + 1; }
 /* A head landing never leaves you standing on him. You are thrown UP and AWAY (stun = no steering while you fly, so the separation is physical, not a timer).
    Away = the side you are already on; if you are nearly dead centre, the way you were moving; if that side is wall (he is wall-daze'd, you would just drop back onto him), the side with room. */
 const EJECT_STOMP = { vy: -6.4, vx: 2.9, stun: 26 }, EJECT_SHRUG = { vy: -5.2, vx: 2.5, stun: 16 };
@@ -464,7 +465,8 @@ function updateBoss() {
   const over = p.x + p.w > b.x && p.x < b.x + b.w && p.y + p.h > b.y && p.y < b.y + b.h, prevBottom = p.y + p.h - p.vy;
   if (p.x + p.w + 4 > b.x && p.x - 4 < b.x + b.w && p.y + p.h > b.y && p.y < b.y + b.h && p.vy > 0 && prevBottom <= b.y + 8) {   // landed on his head
     SFX.stomp();
-    if (b.st === 'dazed') {   // ONE stomp per daze: the damage lands, he throws you clean off, and he is up again. There is nothing left to stand on.
+    if (b.st === 'dazed' && b.dazeId !== b.damagedDaze) {   // ONE stomp per daze (b.dazeId is bumped only when a charge hits the wall; each daze can be damaged once)
+      b.damagedDaze = b.dazeId;   // the damage lands, he throws you clean off, and he is up again: nothing left to stand on
       const dmg = bossDamage(); b.comp = Math.max(0, b.comp - dmg); b.cool = 40; b.stompsLeft = 0; b.stats.stomps++; G.score += 500; G.shake = 8; burst(b.x + 14, b.y, PAL.a, 16); toast(`BASS DROP -${dmg}`, PAL.a);
       ejectFromBoss(b, p, EJECT_STOMP);
       if (b.comp <= 0) { b.st = 'dance'; b.danceT = 0; SFX.clear(); toast('HE CAN\'T RESIST', PAL.a); } else bossTo(b, 'recovering', RECOVER_FRAMES);
@@ -665,6 +667,15 @@ document.querySelectorAll('.pad').forEach((el) => { const k = el.dataset.k;
   const set = (id, on) => { if (on) padState[k].add(id); else padState[k].delete(id); const was = input[k]; input[k] = padState[k].size > 0; el.classList.toggle('on', input[k]); if (k === 'jump' && on && !was) { input.jumpPressed = true; pressed.add('jump'); } };
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); audioInit(); el.setPointerCapture(e.pointerId); set(e.pointerId, true); });
   for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, (e) => set(e.pointerId, false)); el.addEventListener('contextmenu', (e) => e.preventDefault()); });
+/* iPhone Safari zoom: rapid taps on neighbouring buttons look like a double-tap, and two thumbs look like a pinch, so Safari zoomed the page. The page does NOT lock zoom globally
+   (no user-scalable=no / maximum-scale in the viewport meta). Instead the GAMEPLAY surface refuses those gestures, and only while a game is on screen: the reward / e-mail overlay is
+   left alone (it scrolls, takes focus, selects text and can be pinch-zoomed). Controls: Pointer Events + capture (above), touch-action:none, no selection, no callout (CSS), plus: */
+const gameplayGestures = () => !document.body.classList.contains('reward');
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => { if (gameplayGestures()) e.preventDefault(); }, { passive: false });   // iOS pinch
+document.addEventListener('touchstart', (e) => { if (gameplayGestures() && e.touches.length > 1) e.preventDefault(); }, { passive: false });                                      // two thumbs are never a pinch
+document.addEventListener('dblclick', (e) => { if (gameplayGestures()) e.preventDefault(); });
+document.querySelectorAll('.pad').forEach((el) => { for (const ev of ['touchstart', 'touchend', 'touchmove', 'touchcancel']) el.addEventListener(ev, (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false }); });   // buttons: no double-tap zoom, no ghost mouse events
+cv.addEventListener('touchend', (e) => { if (gameplayGestures() && e.cancelable) e.preventDefault(); }, { passive: false });
 if (matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window) document.body.classList.add('touch');
 
 /* ---------- layout: integer scale when it fits, controls in the gutters/below ---------- */
@@ -695,5 +706,5 @@ requestAnimationFrame(frame);
 window.__plat = { ejectFromBoss, EJECT_STOMP, rewardFor, showReward, finish, RW, livePointers, bossTo, RUNUP_ROOM, RUNUP_MIN, STOMPS_PER_DAZE, G, LEVELS, ALL_LEVELS, input, pressed, update, draw, stepPlayer, newPlayer, tileAt, isSolid, loadLevel, begin, resetRun, hurtPlayer, hold(v) { manual = v; }, perf, waveTier, bossDamage, resetPerf() { perf.frames = perf.upd = perf.drw = 0; }, GAIT, sprites: { CHAV, S_SHOE, BOUNCER, S_WAV, S_MAG, drawInspecta, gaitAt, shoeSize: [S_SHOE.width, S_SHOE.height], footAt }, T, VW, VH, ctx, PW, PH, mags: magTotal, wavs: wavTotal };
 })();
 </script>
-</body>
+<div aria-hidden="true" id="aorBuildStamp" style="position:fixed;left:50%;bottom:2px;transform:translateX(-50%);z-index:2147483000;pointer-events:none;font:700 9px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;color:#fff;mix-blend-mode:difference;opacity:.5">TEST BUILD ce29540</div></body>
 </html>

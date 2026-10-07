@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en-GB">
-<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · src f98e390">
+<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · src ce29540">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>AoR Rave Racer R01 (prototype) · PUBLIC TEST</title>
@@ -11,27 +11,30 @@
   #drag{position:fixed;inset:0;z-index:2;touch-action:none}
   #touchUI{position:fixed;inset:0;z-index:3;pointer-events:none;display:none}
   body.touch.racing #touchUI{display:block}
-  #touchUI button{position:absolute;pointer-events:auto;touch-action:none;width:84px;height:84px;border-radius:50%;border:3px solid #d6ff00;background:rgba(10,10,10,.55);color:#d6ff00;font:900 15px ui-monospace,Menlo,Consolas,monospace;-webkit-tap-highlight-color:transparent}
-  #touchUI #bDrift{right:14px;bottom:18px}#touchUI #bItem{right:108px;bottom:42px;width:70px;height:70px;border-color:#29c5ff;color:#29c5ff}
+  #touchUI button{position:absolute;pointer-events:auto;touch-action:none;width:84px;height:84px;border-radius:50%;border:3px solid #d6ff00;background:rgba(10,10,10,.55);color:#d6ff00;font:900 15px ui-monospace,Menlo,Consolas,monospace;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  #touchUI #bDrift{right:12px;bottom:16px}#touchUI #bItem{right:104px;bottom:24px;width:80px;height:80px;border-color:#29c5ff;color:#29c5ff;font-size:12px;line-height:1.15;white-space:pre-line;padding:2px}#touchUI #bBrake{right:196px;bottom:30px;width:74px;height:74px;border-color:#ff2e63;color:#ff2e63;font-size:14px}
+  #touchUI #bItem.has{background:rgba(41,197,255,.28);box-shadow:0 0 0 3px rgba(41,197,255,.35)}
   #touchUI button.on{background:rgba(214,255,0,.35)}
   #menuUI,#resUI{position:fixed;left:0;right:0;z-index:4;display:none;flex-direction:column;align-items:center;gap:8px;padding:4px 8px;box-sizing:border-box;pointer-events:none}
   body.menu #menuUI{display:flex}body.results #resUI{display:flex;flex-direction:row;flex-wrap:wrap;justify-content:center}
   #menuUI button,#resUI button,#bPause{pointer-events:auto;min-width:220px;min-height:50px;border:3px solid #d6ff00;border-radius:12px;background:rgba(10,10,10,.85);color:#d6ff00;font:900 17px ui-monospace,Menlo,Consolas,monospace;touch-action:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
   #menuUI button:focus-visible,#resUI button:focus-visible,#bPause:focus-visible{outline:3px solid #f4f4f0;outline-offset:3px}
-  #menuUI button.alt,#resUI button.alt{border-color:#29c5ff;color:#29c5ff}#menuUI button.ghost{border-color:#ff2e63;color:#ff2e63}#resUI button.dim{border-color:#6b7186;color:#a0a6b8;min-width:120px}
+  #menuUI button.alt,#resUI button.alt{border-color:#29c5ff;color:#29c5ff}#menuUI button.ghost{border-color:#ff2e63;color:#ff2e63}#menuUI button.dim{border-color:#6b7186;color:#a0a6b8;min-height:40px}#resUI button.dim{border-color:#6b7186;color:#a0a6b8;min-width:120px}
   #pickRow{display:flex;align-items:center;gap:6px;pointer-events:auto}#pickRow button{min-width:52px;min-height:44px;font-size:18px;padding:0}#pName{color:#f4f4f0;font:900 14px ui-monospace,Menlo,Consolas,monospace;min-width:170px;text-align:center}
   #resUI #shareBox{pointer-events:auto;width:min(86vw,420px);font:12px ui-monospace,Menlo,Consolas,monospace;background:#0a0a0a;color:#d6ff00;border:2px solid #29c5ff;border-radius:8px;padding:8px;display:none}
   #resUI #shareMsg{width:100%;text-align:center;color:#d6ff00;font:700 12px ui-monospace,Menlo,Consolas,monospace;min-height:14px}
-  #bPause{display:none;position:fixed;left:10px;bottom:10px;z-index:3;min-width:48px;width:48px;min-height:48px;padding:0;font-size:16px}body.touch.racing #bPause{display:block}
+  #helpUI{position:fixed;left:0;right:0;z-index:6;display:none;flex-direction:row;justify-content:center;gap:10px;pointer-events:none}body.help #helpUI{display:flex}#helpUI button{pointer-events:auto;min-width:200px;min-height:52px;border:3px solid #d6ff00;border-radius:12px;background:#d6ff00;color:#0a0a0a;font:900 17px ui-monospace,Menlo,Consolas,monospace;touch-action:none;cursor:pointer}#helpUI button:focus-visible{outline:3px solid #f4f4f0;outline-offset:3px}
+  #bPause{display:none;position:fixed;left:10px;bottom:10px;z-index:3;min-width:48px;width:48px;min-height:48px;padding:0;font-size:16px}body.touch.racing #bPause{display:block}body.help #touchUI,body.help #bPause{display:none!important}
   #noscript{color:#d6ff00;padding:24px}
 </style>
 </head>
 <body>
 <canvas id="c" width="320" height="200" role="img" aria-label="AoR Rave Racer prototype: a pseudo-3D kart racer"></canvas>
 <div id="drag" aria-hidden="true"></div>
-<div id="touchUI"><button type="button" id="bItem" aria-label="use item">ITEM</button><button type="button" id="bDrift" aria-label="drift (hold)">DRIFT</button></div>
+<div id="touchUI"><button type="button" id="bBrake" aria-label="brake (hold)">BRAKE</button><button type="button" id="bItem" aria-label="use your power-up">ITEM</button><button type="button" id="bDrift" aria-label="drift (hold)">DRIFT</button></div>
+<div id="helpUI"><button type="button" id="hGo">GOT IT</button></div>
 <div id="menuUI"><div id="pickRow"><button type="button" id="pPrev" aria-label="previous racer">&lt;</button><span id="pName" aria-live="polite"></span><button type="button" id="pNext" aria-label="next racer">&gt;</button></div>
-  <button type="button" id="mRace">RACE VS CPU</button><button type="button" id="mTrial" class="alt">TIME TRIAL</button><button type="button" id="mGhost" class="ghost" hidden>RACE THE GHOST</button><button type="button" id="mTwo" class="alt">2 PLAYERS (ONE KEYBOARD)</button></div>
+  <button type="button" id="mRace">RACE VS CPU</button><button type="button" id="mTrial" class="alt">TIME TRIAL</button><button type="button" id="mGhost" class="ghost" hidden>RACE THE GHOST</button><button type="button" id="mTwo" class="alt">2 PLAYERS (ONE KEYBOARD)</button><button type="button" id="mHelp" class="dim">HOW TO PLAY</button></div>
 <div id="resUI"><button type="button" id="rAgain">RACE AGAIN</button><button type="button" id="rShare" class="alt">CHALLENGE A MATE</button><button type="button" id="rMenu" class="dim">MENU</button><input id="shareBox" type="text" readonly aria-label="challenge link"><div id="shareMsg" role="status"></div></div>
 <button type="button" id="bPause" aria-label="pause">II</button>
 <noscript><p id="noscript">Rave Racer needs JavaScript.</p></noscript>
@@ -56,7 +59,7 @@ const FONT = (() => { const g = { A: '010101111101101', B: '110101110101110', C:
     V: '101101101101010', W: '101101111111101', X: '101101010101101', Y: '101101010010010', Z: '111001010100111', 0: '111101101101111', 1: '010110010010111',
     2: '110001010100111', 3: '110001010001110', 4: '101101111001001', 5: '111100110001110', 6: '011100111101111', 7: '111001010010010', 8: '111101111101111',
     9: '111101111001110', '.': '000000000000010', '/': '001001010100100', ':': '000010000010000', '!': '010010010000010', '-': '000000111000000', '?': '110001010000010',
-    "'": '010010000000000', ',': '000000000010100', '+': '000010111010000', '%': '101001010100101', ' ': '000000000000000', '>': '100010001010100', '<': '001010100010001', '*': '101010111010101' }; return g; })();
+    "'": '010010000000000', ',': '000000000010100', '+': '000010111010000', '%': '101001010100101', ' ': '000000000000000', '>': '100010001010100', '<': '001010100010001', '*': '101010111010101', '=': '000111000111000', '(': '001010010010001', ')': '100010010010100' }; return g; })();
 function txt(s, x, y, col, sc = 1, align = 'l') { s = String(s).toUpperCase(); const wpx = s.length * 4 * sc - sc; if (align === 'c') x = Math.round(x - wpx / 2); else if (align === 'r') x -= wpx; ctx.fillStyle = col;
   for (let i = 0; i < s.length; i++) { const gl = FONT[s[i]] || FONT['?']; for (let j = 0; j < 15; j++) if (gl[j] === '1') ctx.fillRect(x + (i * 4 + (j % 3)) * sc, y + Math.floor(j / 3) * sc, sc, sc); } }
 function txtO(s, x, y, col, sc = 1, align = 'l') { for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) txt(s, x + dx * sc, y + dy * sc, '#0a0a0a', sc, align); txt(s, x, y, col, sc, align); }
@@ -160,17 +163,23 @@ buildTrack();
 const segAt = (z) => segs[Math.floor((((z % trackLen) + trackLen) % trackLen) / SEG)];
 
 /* ---------- game state ---------- */
-const BEAT = 60 / 128;    // 128 bpm: a boost released on the beat gets a bonus (never required)
+const BEAT = 60 / 128;   // beat length in SECONDS
+function beatPhase() { return ((G.t / 60) % BEAT) / BEAT; }   // 0..1 through the current beat (G.t counts frames at 60 Hz)
+function onBeatNow() { const ph = beatPhase(); return Math.min(ph, 1 - ph) * BEAT < 0.11; }   // within 0.11 s of the beat
+const BASS_MIN_T = 0.5, BASS_MIN = 0.2;   // a drift must last this long AND have built this much BASS before letting go gives a boost    // 128 bpm: a boost released on the beat gets a bonus (never required)
 const ITEMS = ['QUEUE JUMP', 'BASS DROP', 'SPEAKER STACK'];
+const ITEM_INFO = { 'QUEUE JUMP': { col: '#29c5ff', short: 'BIG BOOST', first: 'FULL SEND. BIG BOOST.', label: 'QUEUE\nJUMP' }, 'BASS DROP': { col: '#ff2e63', short: 'SHOVES RACERS', first: 'KNOCK NEARBY RACERS OFF THEIR LINE.', label: 'BASS\nDROP' }, 'SPEAKER STACK': { col: '#ffd23f', short: 'DROPS A SPEAKER', first: 'DROP A SPEAKER BEHIND YOU.', label: 'SPEAKER\nSTACK' } };
 const PERS = [   // CPU behaviour per racer: pace (share of top speed), mess (how often they get it wrong), corner (corner-speed confidence), drifty (uses the real drift/boost mechanic), item (how eagerly), pad (goes for pads and pickups)
   { tag: 'ALL-ROUNDER', pace: 0.94, mess: 0.35, corner: 1.0, drifty: 0.3, item: 0.5, pad: 0.4 },
   { tag: 'STEADY', pace: 0.93, mess: 0.08, corner: 1.0, drifty: 0.1, item: 0.4, pad: 0.3 },
   { tag: 'CORNER GOBLIN', pace: 0.91, mess: 0.25, corner: 1.1, drifty: 1.0, item: 0.5, pad: 0.3 },
   { tag: 'FAST BUT MESSY', pace: 0.98, mess: 1.0, corner: 0.95, drifty: 0.2, item: 0.5, pad: 0.2 },
   { tag: 'BOOST HAPPY', pace: 0.93, mess: 0.5, corner: 1.0, drifty: 0.6, item: 1.0, pad: 1.0 } ];
-const G = { state: 'menu', mode: 1, t: 0, race: 0, count: 0, karts: [], humans: [], paused: false, results: null, shake: 0, fx: [], sound: true, msg: [], over: 0, rnd: rng(7), pick: 0, rf: 0, rec: null, ghostData: null, ghostKart: null, lastGhost: null, ghostNote: '' };
+const G = { help: false, helpSeen: false, itemSeen: {}, state: 'menu', mode: 1, t: 0, race: 0, count: 0, karts: [], humans: [], paused: false, results: null, shake: 0, fx: [], sound: true, msg: [], over: 0, rnd: rng(7), pick: 0, rf: 0, rec: null, ghostData: null, ghostKart: null, lastGhost: null, ghostNote: '' };
 const KEYS = new Set(), PADS = [{ steer: 0, drift: false, item: false, brake: false }, { steer: 0, drift: false, item: false, brake: false }];
-const TOUCH = { steer: 0, drift: false, item: false, id: null, x0: 0, s0: 0, on: false };
+const TOUCH = { steer: 0, raw: 0, drift: false, item: false, brake: false, id: null, x0: 0, s0: 0, on: false };
+/* MOBILE STEERING constants (touch only; desktop keys unchanged): finger travel for full lock = 20% of screen width (was 16%), soft response curve (|d|^1.25), 2px dead zone, light smoothing (35% per frame ~ 40 ms). The anchor still slides with the finger past full lock, so there is no recentring or teleport. */
+const TSTEER = { range: 0.20, expo: 1.25, dead: 2, smooth: 0.35 };
 const CTRL = [ { l: ['KeyA'], r: ['KeyD'], drift: ['KeyW'], brake: ['KeyS'], item: ['KeyE'] }, { l: ['ArrowLeft'], r: ['ArrowRight'], drift: ['ArrowUp'], brake: ['ArrowDown'], item: ['Slash', 'Enter'] } ];
 const held = (a) => a.some((k) => KEYS.has(k));
 
@@ -188,8 +197,10 @@ function startRace(mode) {
     if (sl.human) { k.hi = G.humans.length; G.humans.push(k); } else { k.pace = k.pers.pace + (G.rnd() - 0.5) * 0.03; k.lane = [0.35, -0.3, 0.1, -0.5][n % 4] * (0.5 + k.pers.mess * 0.5); k.ai.nextMistake = 4 + G.rnd() * 8; }
     k.lap = -1; k.cp = false; G.karts.push(k); });
   if (mode === 4 && G.ghostData) G.ghostKart = { ghost: true, racer: G.ghostData.racer, z: 0, x: 0, lean: 0, spin: 0, boost: 0, hitFlash: 0, drift: { on: false }, speed: 0, progress: 0 };
-  sfx.beep(330, 0.1, 'square', 0.15); layoutUI();
+  sfx.beep(330, 0.1, 'square', 0.15); if (!G.helpSeen) { G.help = true; } layoutUI();
 }
+function openHelp() { G.help = true; layoutUI(); }
+function closeHelp() { G.help = false; G.helpSeen = true; layoutUI(); }
 function toMenu() { G.state = 'menu'; G.karts = []; G.humans = []; layoutUI(); }
 
 /* ---------- audio: generated SFX only (no samples, no music) ---------- */
@@ -213,7 +224,7 @@ function stepKart(k, inp, dt) {
   k.x += st * dx * (drifting ? 1.6 : 1) * (k.boost > 0 ? 0.9 : 1); k.x -= dx * sp * seg.curve * CENTRI * (drifting ? 0.5 : 1);
   // drift: builds BASS; letting go after a decent drift gives a BEAT BOOST (on the beat = bonus)
   if (drifting) { if (!k.drift.on) { k.drift.on = true; k.drift.t = 0; k.drift.dir = Math.sign(k.steer); } k.drift.t += dt; k.bass = Math.min(1, k.bass + dt * 0.5); }
-  else if (k.drift.on) { k.drift.on = false; if (k.drift.t >= 0.5 && k.bass > 0.2) { const phase = (G.t % BEAT) / BEAT, near = Math.min(phase, 1 - phase) * BEAT < 0.11; const secs = 0.5 + k.bass * 1.0; k.boost = Math.max(k.boost, near ? secs * 1.3 : secs); k.onBeat = near ? 1 : 0; k.boostBig = near; k.bass = 0; k.stats.driftBoosts++; if (k.human) { sfx.boost(); flash(k, near ? 'ON THE BEAT!' : 'BEAT BOOST', near ? '#d6ff00' : '#29c5ff'); } } else k.bass = Math.max(0, k.bass - 0.15); k.drift.t = 0; }
+  else if (k.drift.on) { k.drift.on = false; if (k.drift.t >= BASS_MIN_T && k.bass > BASS_MIN) { const near = onBeatNow(); const secs = 0.5 + k.bass * 1.0; k.boost = Math.max(k.boost, near ? secs * 1.3 : secs); k.onBeat = near ? 1 : 0; k.boostBig = near; k.bass = 0; k.stats.driftBoosts++; if (k.human) { sfx.boost(); flash(k, near ? 'ON THE BEAT!' : 'BEAT BOOST', near ? '#d6ff00' : '#29c5ff'); } } else k.bass = Math.max(0, k.bass - 0.15); k.drift.t = 0; }
   else if (k.bass > 0) k.bass = Math.max(0, k.bass - dt * 0.08);
   // speed
   if (k.boost > 0) { k.boost -= dt; k.speed = Math.min(BOOSTV, k.speed + ACC * 3 * dt); if (seg.pad === false && k.boost <= 0) k.boostBig = false; }
@@ -232,12 +243,12 @@ function stepKart(k, inp, dt) {
   // props + pickups (current and next segment so nothing is skipped at speed)
   for (const sg of [seg, segs[(seg.i + 1) % N]]) {
     for (const s of sg.sprites) { const pr = PROP[s.type]; if (!pr || !pr.solid || s.hit > 0) continue; if (Math.abs(k.x - s.offset) < (KW + pr.w) / 2 && k.crashCD <= 0) crash(k, s, pr); }
-    for (const it of sg.items) { if (it.t > 0) { continue; } if (Math.abs(k.x - it.x) < 0.2 && !k.item) { it.t = 6; k.item = G.rnd() < 0.34 ? ITEMS[0] : G.rnd() < 0.5 ? ITEMS[1] : ITEMS[2]; if (k.human) sfx.pick(); } }
+    for (const it of sg.items) { if (it.t > 0) { continue; } if (Math.abs(k.x - it.x) < 0.2 && !k.item) { it.t = 6; k.item = G.rnd() < 0.34 ? ITEMS[0] : G.rnd() < 0.5 ? ITEMS[1] : ITEMS[2]; if (k.human) { sfx.pick(); const inf = ITEM_INFO[k.item], first = !G.itemSeen[k.item]; G.itemSeen[k.item] = true; flash(k, k.item, inf.col, first ? inf.first : inf.short, first ? 3.2 : 1.8); } } }
   }
   if (inp.item && k.item && k.spin <= 0) useItem(k);
   k.lean = Math.abs(k.steer) < 0.25 ? 0 : Math.sign(k.steer);
 }
-function flash(k, text, col) { if (k.human) G.msg.push({ k, text, col, t: 1.4 }); }
+function flash(k, text, col, sub, dur) { if (k.human) { const d = dur || 1.4; G.msg.push({ k, text, col, sub: sub || '', t: d, d }); } }
 function crash(k, s, pr) { k.crashCD = 0.6; k.hitFlash = 0.25; const side = Math.sign(k.x - s.offset) || (k.x > 0 ? -1 : 1) * -1 || 1; const dir = (Math.abs(k.x) > 0.7 ? -Math.sign(k.x) : side);
   k.x = s.offset + dir * ((KW + pr.w) / 2 + 0.04); k.speed = Math.min(k.speed, MAXV * (pr.soft ? 0.55 : 0.2)); k.boost = 0; if (pr.soft) s.hit = 4; if (pr.spin) { k.spin = 0.8; if (k.human) sfx.spin(); } if (k.human) { sfx.bump(); G.shake = 6; } }
 function useItem(k) { const it = k.item; k.item = null; k.stats.items++;
@@ -273,9 +284,11 @@ function aiInput(k) {
 
 /* ---------- input -> per-human controls ---------- */
 function humanInput(h) {
-  const c = CTRL[h.hi], pad = PADS[h.hi]; let steer = (held(c.r) ? 1 : 0) - (held(c.l) ? 1 : 0); if (!steer && Math.abs(pad.steer) > 0.15) steer = pad.steer;
+  // one human: A/D AND the arrow keys both work (W / Up / Shift drift, S / Down brake, E / Space / / / Enter item). Two humans: P1 = left hand set, P2 = arrows.
+  const c = G.mode === 2 ? CTRL[h.hi] : { l: CTRL[0].l.concat(CTRL[1].l), r: CTRL[0].r.concat(CTRL[1].r), drift: CTRL[0].drift.concat(CTRL[1].drift, ['ShiftLeft', 'ShiftRight']), brake: CTRL[0].brake.concat(CTRL[1].brake), item: CTRL[0].item.concat(CTRL[1].item, ['Space']) }, pad = PADS[h.hi];
+  let steer = (held(c.r) ? 1 : 0) - (held(c.l) ? 1 : 0); if (!steer && Math.abs(pad.steer) > 0.15) steer = pad.steer;
   let drift = held(c.drift) || pad.drift, brake = held(c.brake) || pad.brake, item = held(c.item) || pad.item;
-  if (h.hi === 0 && TOUCH.on) { if (Math.abs(TOUCH.steer) > Math.abs(steer)) steer = TOUCH.steer; drift = drift || TOUCH.drift; item = item || TOUCH.item; }
+  if (h.hi === 0 && TOUCH.on) { if (Math.abs(TOUCH.steer) > Math.abs(steer)) steer = TOUCH.steer; drift = drift || TOUCH.drift; item = item || TOUCH.item; brake = brake || TOUCH.brake; }
   const itemEdge = item && !h.itemHeld; h.itemHeld = item; return { steer, drift, brake, item: itemEdge };
 }
 
@@ -302,9 +315,11 @@ function shareLink() { return G.lastGhost ? location.href.split('#')[0] + '#ghos
 /* ---------- update ---------- */
 function ranks() { const a = G.karts.slice().sort((p, q) => { if ((p.finish !== null) !== (q.finish !== null)) return p.finish !== null ? -1 : 1; if (p.finish !== null) return p.finish - q.finish; return (q.lap * trackLen + q.z) - (p.lap * trackLen + p.z); }); a.forEach((k, i) => { k.place = i + 1; }); return a; }
 function update() {
-  G.t++; const dt = DT;
+  G.t++; const dt = DT; TOUCH.steer = TOUCH.id === null ? 0 : lerp(TOUCH.steer, TOUCH.raw, TSTEER.smooth);   // smoothed analogue steering (touch)
   for (const k of G.karts) k.hitFlash = Math.max(0, k.hitFlash);
-  pollPads();
+  pollPads(); updateItemButton();
+  if (G.help) { if (pressedOnce('Enter') || pressedOnce('Space') || pressedOnce('Escape') || pressedOnce('KeyH') || helpClose) closeHelp(); helpClose = false; sfx.engine(0, false); endFrame(); return; }
+  if (pressedOnce('KeyH') && G.state !== 'results') { openHelp(); endFrame(); return; }
   if (G.state === 'menu') { const ae = document.activeElement, onBtn = ae && ae.tagName === 'BUTTON';
     if (pressedOnce('Digit1') || pressedOnce('Numpad1')) startRace(1); else if (pressedOnce('Digit2') || pressedOnce('Numpad2')) startRace(2); else if (pressedOnce('Digit3') || pressedOnce('Numpad3')) startRace(3); else if ((pressedOnce('Digit4') || pressedOnce('Numpad4')) && G.ghostData) startRace(4);
     else if ((pressedOnce('Enter') || pressedOnce('Space')) && !onBtn) startRace(1);
@@ -333,7 +348,7 @@ function update() {
   }
   endFrame();
 }
-let tapped = false, pausePressed = false; const downNow = new Set(), downPrev = new Set();
+let tapped = false, pausePressed = false, helpClose = false; const downNow = new Set(), downPrev = new Set();
 function pressedOnce(code) { return downNow.has(code) && !downPrev.has(code); }
 function endFrame() { downPrev.clear(); downNow.forEach((c) => downPrev.add(c)); tapped = false; }
 function pollPads() { const gps = navigator.getGamepads ? navigator.getGamepads() : []; let n = 0; for (const gp of gps) { if (!gp || !gp.connected || n > 1) continue; const pd = PADS[n]; const ax = gp.axes[0] || 0; pd.steer = Math.abs(ax) > 0.15 ? ax : (gp.buttons[15] && gp.buttons[15].pressed ? 1 : 0) - (gp.buttons[14] && gp.buttons[14].pressed ? 1 : 0); pd.drift = !!(gp.buttons[0] && gp.buttons[0].pressed) || !!(gp.buttons[7] && gp.buttons[7].pressed); pd.brake = !!(gp.buttons[1] && gp.buttons[1].pressed); pd.item = !!(gp.buttons[2] && gp.buttons[2].pressed) || !!(gp.buttons[5] && gp.buttons[5].pressed); n++; } }
@@ -401,17 +416,26 @@ function drawKartAt(o, x, y, dw, dh, other) {
   if (o.drift.on) { ctx.fillStyle = (G.t % 4 < 2) ? '#d6ff00' : '#ffd23f'; const sd = -o.drift.dir; for (let i = 0; i < 4; i++) ctx.fillRect(Math.round(x + sd * dw * 0.36 + ((G.t * 3 + i * 5) % 7) * sd), Math.round(y - 1 - ((G.t + i * 3) % 5)), 2, 1); }
   ctx.restore();
 }
+function bassState(k) { if (k.drift.on && k.drift.t >= BASS_MIN_T && k.bass >= BASS_MIN) return onBeatNow() ? 'beat' : 'ready'; return k.drift.on ? 'building' : 'idle'; }
 function hudPane(k, w, h, split) {
-  const hi = k.hi, sc = 1, m = split ? 3 : 4; const ord = ranks(); const place = k.place, trial = G.mode >= 3;
+  const m = split ? 3 : 4, trial = G.mode >= 3, place = k.place, kph = Math.round(k.speed / MAXV * 180);
+  // ROW 1: position (left) | lap + time + speed (right). Everything important lives in the TOP of the picture: on a phone the thumbs sit at the bottom.
   const lapTxt = `LAP ${clamp(k.lap + 1, 1, LAPS)}/${LAPS}`; if (trial) txtO(G.mode === 4 ? 'VS GHOST' : 'TRIAL', m, m, '#d6ff00', split ? 1 : 2); else txtO(`${place}${['ST', 'ND', 'RD', 'TH'][Math.min(3, place - 1)]}`, m, m, '#d6ff00', split ? 2 : 3);
-  if (G.mode === 4 && G.ghostKart && k.finish === null) { const gap = (k.lap * trackLen + k.z - G.ghostKart.progress) / MAXV; txtO(gap >= 0 ? `YOU LEAD ${gap.toFixed(1)}S` : `GHOST LEADS ${(-gap).toFixed(1)}S`, m, m + (split ? 8 : 16), gap >= 0 ? '#d6ff00' : '#ff2e63', 1); } txtO(lapTxt, w - m, m, '#f4f4f0', 1, 'r'); txtO(fmt(G.timer), w - m, m + 7, '#f4f4f0', 1, 'r');
-  txtO(`${Math.round(k.speed / MAXV * 180)}`, w - m, h - m - (split ? 12 : 17), '#f4f4f0', split ? 1 : 2, 'r'); txt('KPH', w - m, h - m - 5, '#a0a6b8', 1, 'r');
-  // bass meter
-  const bx = m, by = h - m - 6, bw = split ? 56 : 70; ctx.fillStyle = '#0a0a0a'; ctx.fillRect(bx - 1, by - 1, bw + 2, 7); ctx.fillStyle = '#2b2d3a'; ctx.fillRect(bx, by, bw, 5); ctx.fillStyle = k.bass > 0.8 ? '#d6ff00' : '#29c5ff'; ctx.fillRect(bx, by, Math.round(bw * k.bass), 5); txt('BASS', bx, by - 7, '#a0a6b8', 1);
-  // item slot
-  const ix = split ? w / 2 - 10 : w / 2 - 12; ctx.fillStyle = 'rgba(10,10,10,.7)'; ctx.fillRect(ix, m, 24, 16); ctx.strokeStyle = k.item ? '#d6ff00' : '#454a5c'; ctx.strokeRect(ix + 0.5, m + 0.5, 23, 15); if (k.item) { const t = k.item; txt(t === 'QUEUE JUMP' ? 'QJ' : t === 'BASS DROP' ? 'BD' : 'SS', ix + 12, m + 5, '#d6ff00', 2, 'c'); } else txt('ITEM', ix + 12, m + 6, '#454a5c', 1, 'c');
-  // banners
-  for (const mm of G.msg) if (mm.k === k) { const a = clamp(mm.t / 0.4, 0, 1); ctx.globalAlpha = a; txtO(mm.text, w / 2, Math.round(h * 0.22), mm.col, split ? 1 : 2, 'c'); ctx.globalAlpha = 1; }
+  txtO(lapTxt, w - m, m, '#f4f4f0', 1, 'r'); txtO(fmt(G.timer), w - m, m + 7, '#f4f4f0', 1, 'r'); txtO(`${kph} KPH`, w - m, m + 14, '#a0a6b8', 1, 'r');
+  // ROW 2: BASS BOOST meter, under the position. States: HOLD DRIFT (idle) / BUILDING / READY (let go now) / ON BEAT (let go now for MORE). A tick marks the point where a release first counts.
+  const by = m + (split ? 12 : 21), bw = split ? 66 : 84, st = bassState(k), pulse = G.t % 10 < 5; const col = st === 'beat' ? '#ffffff' : st === 'ready' ? '#d6ff00' : st === 'building' ? '#29c5ff' : '#6b7186';
+  txtO('BASS BOOST', m, by, st === 'idle' ? '#a0a6b8' : col, 1); txtO(st === 'beat' ? 'ON BEAT!' : st === 'ready' ? 'READY!' : st === 'building' ? 'BUILDING' : 'HOLD DRIFT', m + bw, by, col, 1, 'r');
+  ctx.fillStyle = '#0a0a0a'; ctx.fillRect(m - 1, by + 7, bw + 2, 7); ctx.fillStyle = '#2b2d3a'; ctx.fillRect(m, by + 8, bw, 5);
+  ctx.fillStyle = st === 'beat' ? (pulse ? '#ffffff' : '#ff2e63') : st === 'ready' ? (pulse ? '#d6ff00' : '#8aa300') : '#29c5ff'; ctx.fillRect(m, by + 8, Math.round(bw * Math.min(1, k.bass)), 5);
+  const tick = Math.round(bw * (BASS_MIN_T * 0.5)); ctx.fillStyle = '#f4f4f0'; ctx.fillRect(m + tick, by + 7, 1, 7);   // the "ready" line: past this (and 0.5 s of drift) a release boosts
+  const ph = beatPhase(), bright = ph < 0.16 || ph > 0.92; ctx.fillStyle = bright ? (st === 'idle' ? '#f4f4f0' : '#d6ff00') : '#454a5c'; ctx.fillRect(m + bw + 4, by + 9, 3, 3);   // a little metronome: lights on the beat
+  if (G.mode === 4 && G.ghostKart && k.finish === null) { const gap = (k.lap * trackLen + k.z - G.ghostKart.progress) / MAXV; txtO(gap >= 0 ? `YOU LEAD ${gap.toFixed(1)}S` : `GHOST LEADS ${(-gap).toFixed(1)}S`, m, by + 17, gap >= 0 ? '#d6ff00' : '#ff2e63', 1); }
+  // ITEM: always the FULL NAME and what it does, top centre
+  const iw = split ? 66 : 78, ih = split ? 15 : 17, ix = Math.round(w / 2 - iw / 2), iy = m; ctx.fillStyle = 'rgba(10,10,10,.75)'; ctx.fillRect(ix, iy, iw, ih); const inf = k.item ? ITEM_INFO[k.item] : null;
+  ctx.strokeStyle = inf ? (pulse ? inf.col : '#f4f4f0') : '#454a5c'; ctx.strokeRect(ix + 0.5, iy + 0.5, iw - 1, ih - 1);
+  if (inf) { txt(k.item, ix + iw / 2, iy + 3, '#f4f4f0', 1, 'c'); txt(inf.short, ix + iw / 2, iy + 10, inf.col, 1, 'c'); } else { txt('NO ITEM', ix + iw / 2, iy + (ih - 5) / 2, '#6b7186', 1, 'c'); }
+  // banners: item pick-ups say the full name, and (the first time this session) what it does
+  for (const mm of G.msg) if (mm.k === k) { const a = clamp(mm.t / 0.4, 0, 1); ctx.globalAlpha = a; const by2 = Math.round(h * (split ? 0.3 : 0.24)); txtO(mm.text, w / 2, by2, mm.col, split ? 1 : 2, 'c'); if (mm.sub) txtO(mm.sub, w / 2, by2 + (split ? 9 : 15), '#f4f4f0', 1, 'c'); ctx.globalAlpha = 1; }
   if (k.strobe > 0 && Math.floor(G.t / 3) % 2 === 0) { ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(0, 0, w, h); }
   for (const f of G.fx) if (f.type === 'ring') { ctx.strokeStyle = '#ff2e63'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(w / 2, h * 0.7, (0.5 - f.t) * w * 1.2, 0, 6.3); ctx.stroke(); }
   if (k.shake && Math.abs(k.x) > 1.02) { ctx.fillStyle = 'rgba(138,163,0,.15)'; ctx.fillRect(0, h * 0.5, w, h * 0.5); }
@@ -427,16 +451,17 @@ function draw() {
   if (G.mode === 2 && G.humans.length === 2) { const ph = Math.floor((H - 2) / 2); renderPane(G.humans[0], 0, 0, W, ph, true); renderPane(G.humans[1], 0, ph + 2, W, ph, true); ctx.fillStyle = '#d6ff00'; ctx.fillRect(0, ph, W, 2); txtO('P1', 30, 4, '#29c5ff', 1); txtO('P2', 30, ph + 6, '#29c5ff', 1); }
   else if (G.humans[0]) renderPane(G.humans[0], 0, 0, W, H, false);
   ctx.restore();
-  if (G.paused) { ctx.fillStyle = 'rgba(10,10,10,.75)'; ctx.fillRect(0, 0, W, H); txtO('PAUSED', W / 2, Math.round(H * 0.34), '#d6ff00', 5, 'c'); txt('P OR ESC TO RESUME  R RESTART  M SOUND', W / 2, Math.round(H * 0.6), '#f4f4f0', 1, 'c'); }
+  if (G.paused) { ctx.fillStyle = 'rgba(10,10,10,.75)'; ctx.fillRect(0, 0, W, H); txtO('PAUSED', W / 2, Math.round(H * 0.34), '#d6ff00', 5, 'c'); txt('P OR ESC TO RESUME  R RESTART', W / 2, Math.round(H * 0.6), '#f4f4f0', 1, 'c'); txt('H HOW TO PLAY  M SOUND', W / 2, Math.round(H * 0.6) + 10, '#a0a6b8', 1, 'c'); }
   if (G.state === 'results') drawResults();
+  if (G.help) drawHelp();
 }
 function drawMenu() {
   const hor = Math.round(H * 0.6); drawBG(W, H, hor, { x: 0 }, G.t * 2); ctx.fillStyle = '#12261f'; ctx.fillRect(0, hor, W, H - hor); for (let i = 0; i < 12; i++) { ctx.fillStyle = i % 2 ? '#33364a' : '#3a3d4d'; const y = hor + i * i * 0.55 * (H / 200), hh = 1 + i * 0.5; ctx.fillRect(W / 2 - 18 - i * 11, y, 36 + i * 22, hh); }
   ctx.fillStyle = 'rgba(10,10,10,.55)'; ctx.fillRect(0, 0, W, H); const bob = Math.round(Math.sin(G.t / 15) * 2), touch = document.body.classList.contains('touch'), narrow = W < 260;
   txtO('AOR', W / 2, 10 + bob, '#d6ff00', narrow ? 5 : 6, 'c'); txtO('RAVE RACER', W / 2, narrow ? 38 : 42, '#f4f4f0', narrow ? 3 : 4, 'c'); txtO('R01 PROTOTYPE: TEST BUILD', W / 2, narrow ? 62 : 66, '#ff2e63', 1, 'c');
   if (G.ghostNote) txtO(G.ghostNote, W / 2, narrow ? 72 : 75, G.ghostData ? '#29c5ff' : '#ff2e63', 1, 'c');
-  const by = H - (touch ? 24 : 33); if (!touch) { txt('A D / ARROWS STEER  W DRIFT  S BRAKE  E ITEM', W / 2, by - 9, '#f4f4f0', 1, 'c'); txt('P2: ARROWS  UP DRIFT  DOWN BRAKE  / ITEM', W / 2, by, '#a0a6b8', 1, 'c'); txt('AUTO-ACCELERATE. P PAUSE  R RESTART  M SOUND. GAMEPADS WORK', W / 2, by + 9, '#a0a6b8', 1, 'c'); txt('1 RACE  2 TWO PLAYERS  3 TIME TRIAL  4 GHOST', W / 2, by + 18, '#6b7186', 1, 'c'); }
-  else { txtO('DRAG LEFT / RIGHT TO STEER', W / 2, by - 2, '#d6ff00', 1, 'c'); txt('HOLD DRIFT, LET GO FOR A BEAT BOOST', W / 2, by + 8, '#f4f4f0', 1, 'c'); txt('ORIGINAL ART AND SOUNDS. NOTHING IS SENT ANYWHERE.', W / 2, by + 18, '#6b7186', 1, 'c'); }
+  const by = H - (touch ? 24 : 33); if (!touch) { txt('STEER A D / ARROWS  DRIFT W / UP  BRAKE S / DOWN', W / 2, by - 9, '#f4f4f0', 1, 'c'); txt('ITEM E / SPACE.  2 PLAYERS: P1 A D W S E, P2 ARROWS + /', W / 2, by, '#a0a6b8', 1, 'c'); txt('AUTO-ACCELERATE. P PAUSE  R RESTART  M SOUND. GAMEPADS WORK', W / 2, by + 9, '#a0a6b8', 1, 'c'); txt('1 RACE  2 TWO PLAYERS  3 TRIAL  4 GHOST  H HELP', W / 2, by + 18, '#6b7186', 1, 'c'); }
+  else { txtO('DRAG TO STEER. HOLD DRIFT IN CORNERS.', W / 2, by - 2, '#d6ff00', 1, 'c'); txt('LET GO WHEN BASS IS READY FOR A BOOST', W / 2, by + 8, '#f4f4f0', 1, 'c'); txt('ORIGINAL ART AND SOUNDS. NOTHING IS SENT ANYWHERE.', W / 2, by + 18, '#6b7186', 1, 'c'); }
 }
 function drawResults() {
   const trial = G.mode >= 3, narrow = W < 260; ctx.fillStyle = 'rgba(10,10,10,.84)'; ctx.fillRect(0, 0, W, H); txtO(trial ? 'TIME' : 'RACE OVER', W / 2, 8, '#d6ff00', 4, 'c'); const me = G.humans[0];
@@ -447,7 +472,15 @@ function drawResults() {
     if (G.mode === 4 && G.ghostData) { const d = me.finish - G.ghostData.finish; txtO(d < 0 ? `YOU BEAT THE GHOST BY ${(-d).toFixed(2)}S` : `GHOST WINS BY ${d.toFixed(2)}S`, W / 2, y, d < 0 ? '#d6ff00' : '#ff2e63', 1, 'c'); y += 10; } }
   txt('PROTOTYPE. NOTHING IS SAVED OR SENT. CHALLENGE LINKS HOLD ONLY YOUR RACE LINE.', W / 2, H - 9, '#6b7186', 1, 'c');
 }
+function helpLines() { const touch = document.body.classList.contains('touch');
+  return [['YOUR KART ACCELERATES ITSELF.', '#f4f4f0'], [touch ? 'STEER: DRAG LEFT / RIGHT ANYWHERE.' : 'STEER: A D OR THE ARROW KEYS.', '#d6ff00'], [touch ? 'DRIFT: HOLD THE DRIFT BUTTON IN CORNERS.' : 'DRIFT: HOLD W / UP / SHIFT IN CORNERS.', '#d6ff00'],
+    [touch ? 'BRAKE: HOLD BRAKE FOR TIGHT BENDS.' : 'BRAKE: S OR DOWN FOR TIGHT BENDS.', '#ff2e63'], ['', '#f4f4f0'], ['BASS BOOST: DRIFTING CHARGES IT.', '#29c5ff'], ['LET GO WHEN IT SAYS READY = BOOST.', '#29c5ff'], ['LET GO ON THE BEAT = MORE BOOST.', '#ffffff'], ['', '#f4f4f0'],
+    [touch ? 'ITEM BUTTON: USE YOUR POWER-UP.' : 'ITEM: E OR SPACE USES YOUR POWER-UP.', '#ffd23f'], ['QUEUE JUMP = BIG BOOST', '#29c5ff'], ['BASS DROP = SHOVES NEARBY RACERS', '#ff2e63'], ['SPEAKER STACK = DROPS A SPEAKER BEHIND', '#ffd23f']]; }
+function drawHelp() { ctx.fillStyle = 'rgba(10,10,10,.9)'; ctx.fillRect(0, 0, W, H); const lines = helpLines(), narrow = W < 260, step = 9, y0 = narrow ? 34 : 33; txtO('HOW TO RACE', W / 2, 8, '#d6ff00', narrow ? 3 : 4, 'c');
+  lines.forEach(([t, c], i) => { if (t) txt(t, narrow ? 8 : 24, y0 + i * step + (narrow ? 4 : 0), c, 1); });
+  txt('DRIFT TO BUILD BASS. RELEASE TO BOOST.', W / 2, H - (narrow ? 66 : 40), '#d6ff00', 1, 'c'); txt('DROP IT ON THE BEAT FOR MORE.', W / 2, H - (narrow ? 57 : 31), '#d6ff00', 1, 'c'); }
 function pickRacer(d) { G.pick = (G.pick + d + 5) % 5; updatePick(); }
+let lastItemLabel = null; function updateItemButton() { const el = document.getElementById('bItem'), it = G.humans[0] && G.humans[0].item; if (it === lastItemLabel) return; lastItemLabel = it; el.textContent = it ? ITEM_INFO[it].label : 'ITEM'; el.classList.toggle('has', !!it); el.setAttribute('aria-label', it ? `use ${it}: ${ITEM_INFO[it].short.toLowerCase()}` : 'use your power-up (none held)'); }
 function updatePick() { const el = document.getElementById('pName'); if (el) el.textContent = `${RACERS[G.pick].name}`; }
 async function shareChallenge() { const link = shareLink(), box = document.getElementById('shareBox'), msg = document.getElementById('shareMsg'); if (!link) { msg.textContent = 'NO RUN TO SHARE YET'; return; } box.style.display = 'block'; box.value = link; box.select(); let done = false;
   if (navigator.share && document.body.classList.contains('touch')) { try { await navigator.share({ title: 'Beat my Rave Racer run', text: `Beat my ${fmt(G.humans[0].finish)} in AoR Rave Racer`, url: link }); done = true; msg.textContent = 'SHARED. THEY RACE YOUR GHOST.'; } catch (_) { } }
@@ -456,39 +489,45 @@ async function shareChallenge() { const link = shareLink(), box = document.getEl
 /* ---------- input wiring ---------- */
 addEventListener('keydown', (e) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'Slash'].includes(e.code)) e.preventDefault(); KEYS.add(e.code); downNow.add(e.code); sfx.init(); });
 addEventListener('keyup', (e) => { KEYS.delete(e.code); downNow.delete(e.code); });
-addEventListener('blur', () => { KEYS.clear(); downNow.clear(); TOUCH.steer = 0; TOUCH.drift = false; TOUCH.item = false; TOUCH.id = null; if (G.state === 'race') G.paused = true; });
+addEventListener('blur', () => { KEYS.clear(); downNow.clear(); TOUCH.steer = 0; TOUCH.raw = 0; TOUCH.drift = false; TOUCH.item = false; TOUCH.brake = false; TOUCH.id = null; if (G.state === 'race') G.paused = true; });
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.state === 'race') G.paused = true; });
 const dragEl = document.getElementById('drag');
-const endDrag = (e) => { if (TOUCH.id !== null && (!e || e.pointerId === TOUCH.id)) { TOUCH.id = null; TOUCH.steer = 0; } };
+const endDrag = (e) => { if (TOUCH.id !== null && (!e || e.pointerId === TOUCH.id)) { TOUCH.id = null; TOUCH.steer = 0; TOUCH.raw = 0; } };
 dragEl.addEventListener('pointerdown', (e) => { sfx.init(); e.preventDefault(); if (G.state === 'results' || G.state === 'menu') return;
   if (TOUCH.id === null) { TOUCH.id = e.pointerId; TOUCH.x0 = e.clientX; TOUCH.on = true; try { dragEl.setPointerCapture(e.pointerId); } catch (_) { } } });
-dragEl.addEventListener('pointermove', (e) => { if (e.pointerId !== TOUCH.id) return; TOUCH.steer = clamp((e.clientX - TOUCH.x0) / (Math.max(280, innerWidth) * 0.16), -1, 1); if (Math.abs(e.clientX - TOUCH.x0) > Math.max(280, innerWidth) * 0.16) TOUCH.x0 = e.clientX - Math.sign(e.clientX - TOUCH.x0) * Math.max(280, innerWidth) * 0.16; });
+dragEl.addEventListener('pointermove', (e) => { if (e.pointerId !== TOUCH.id) return; const R = Math.max(280, innerWidth) * TSTEER.range; let d = e.clientX - TOUCH.x0; if (Math.abs(d) > R) { TOUCH.x0 = e.clientX - Math.sign(d) * R; d = Math.sign(d) * R; }
+  TOUCH.raw = Math.abs(d) < TSTEER.dead ? 0 : Math.sign(d) * Math.pow(Math.abs(d) / R, TSTEER.expo); });
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) dragEl.addEventListener(ev, endDrag);
 dragEl.addEventListener('contextmenu', (e) => e.preventDefault());
 function holdBtn(id, key) { const el = document.getElementById(id); const set = (v) => { TOUCH[key] = v; TOUCH.on = true; el.classList.toggle('on', v); }; let pid = null;
   el.addEventListener('pointerdown', (e) => { sfx.init(); e.preventDefault(); e.stopPropagation(); pid = e.pointerId; set(true); try { el.setPointerCapture(e.pointerId); } catch (_) { } });
   for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, (e) => { if (pid === e.pointerId || ev !== 'pointerup') { pid = null; set(false); } }); el.addEventListener('contextmenu', (e) => e.preventDefault()); }
-holdBtn('bDrift', 'drift'); holdBtn('bItem', 'item');
+holdBtn('bDrift', 'drift'); holdBtn('bItem', 'item'); holdBtn('bBrake', 'brake');
 function btn(id, fn) { const el = document.getElementById(id); let down = null; el.addEventListener('pointerdown', (e) => { sfx.init(); down = e.pointerId; e.preventDefault(); }); el.addEventListener('pointerup', (e) => { if (down === e.pointerId) fn(); down = null; }); el.addEventListener('pointercancel', () => { down = null; }); el.addEventListener('click', (e) => { e.preventDefault(); if (e.detail === 0 && !e.pointerType) fn(); }); el.addEventListener('contextmenu', (e) => e.preventDefault()); return el; }
 btn('mRace', () => startRace(1)); btn('mTwo', () => startRace(2)); btn('mTrial', () => startRace(3)); btn('mGhost', () => { if (G.ghostData) startRace(4); });
-btn('pPrev', () => pickRacer(-1)); btn('pNext', () => pickRacer(1)); btn('rAgain', () => startRace(G.mode)); btn('rShare', () => shareChallenge()); btn('rMenu', () => toMenu()); btn('bPause', () => { pausePressed = true; });
+btn('mHelp', () => openHelp()); btn('hGo', () => { helpClose = true; }); btn('pPrev', () => pickRacer(-1)); btn('pNext', () => pickRacer(1)); btn('rAgain', () => startRace(G.mode)); btn('rShare', () => shareChallenge()); btn('rMenu', () => toMenu()); btn('bPause', () => { pausePressed = true; });
 document.getElementById('shareBox').addEventListener('focus', (e) => e.target.select());
+/* iPhone Safari zoom guard (same approach as Inspecta; viewport zoom is NOT locked site-wide): the game surface and its buttons refuse pinch, two-thumb and double-tap gestures. */
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+document.addEventListener('dblclick', (e) => { if (!(e.target && e.target.tagName === 'INPUT')) e.preventDefault(); });
+document.querySelectorAll('#touchUI button, #bPause, #drag').forEach((el) => { for (const ev of ['touchstart', 'touchend', 'touchmove', 'touchcancel']) el.addEventListener(ev, (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false }); });
 if (matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window) { document.body.classList.add('touch'); document.getElementById('mTwo').style.display = 'none'; }
-function layoutUI() { document.body.classList.toggle('menu', G.state === 'menu'); document.body.classList.toggle('racing', G.state === 'race' || G.state === 'count'); document.body.classList.toggle('results', G.state === 'results');
+function layoutUI() { document.body.classList.toggle('menu', G.state === 'menu'); document.body.classList.toggle('racing', G.state === 'race' || G.state === 'count'); document.body.classList.toggle('results', G.state === 'results'); document.body.classList.toggle('help', G.help);
   document.getElementById('mGhost').hidden = !G.ghostData; if (G.state !== 'results') { const b = document.getElementById('shareBox'); b.style.display = 'none'; document.getElementById('shareMsg').textContent = ''; }
   document.getElementById('rShare').style.display = G.lastGhost || G.state !== 'results' ? '' : 'none'; updatePick(); fit();
   if (G.state === 'menu' && !document.body.classList.contains('touch')) { const f = document.getElementById('mRace'); if (f && document.activeElement !== f) f.focus({ preventScroll: true }); } }
 function fit() { const vw = innerWidth, vh = innerHeight, touch = document.body.classList.contains('touch'), portrait = vh > vw * 1.15; if (touch && portrait) setLogical(224, 336); else setLogical(320, 200);
   const sc = Math.min(vw / W, vh / H), iw = Math.floor(W * sc), ih = Math.floor(H * sc), top = (touch && portrait) ? 0 : Math.floor((vh - ih) / 2); cv.style.width = iw + 'px'; cv.style.height = ih + 'px'; cv.style.left = Math.floor((vw - iw) / 2) + 'px'; cv.style.top = top + 'px';
-  const mu = document.getElementById('menuUI'), ru = document.getElementById('resUI'); mu.style.top = top + Math.round(ih * (portrait && touch ? 0.30 : 0.385)) + 'px'; ru.style.top = top + Math.round(ih * (portrait && touch ? 0.62 : 0.66)) + 'px'; }
+  const mu = document.getElementById('menuUI'), ru = document.getElementById('resUI'); mu.style.top = top + Math.round(ih * (portrait && touch ? 0.30 : 0.385)) + 'px'; ru.style.top = top + Math.round(ih * (portrait && touch ? 0.62 : 0.66)) + 'px'; document.getElementById('helpUI').style.top = top + Math.round(ih * (portrait && touch ? 0.9 : 0.87)) + 'px'; }
 addEventListener('resize', () => { fit(); }); addEventListener('orientationchange', fit); addEventListener('hashchange', () => { loadGhostFromHash(); layoutUI(); }); loadGhostFromHash(); fit(); layoutUI();
 
 /* ---------- loop ---------- */
 let acc = 0, prev = performance.now(), manual = false; const perf = { frames: 0, upd: 0, drw: 0 };
 function frame(now) { if (!manual) { acc += Math.min(0.1, (now - prev) / 1000); while (acc >= DT) { const t0 = performance.now(); update(); perf.upd += performance.now() - t0; acc -= DT; } } prev = now; const t1 = performance.now(); draw(); perf.drw += performance.now() - t1; perf.frames++; requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
-window.__race = { G, KEYS, TOUCH, PADS, segs, mark, update, draw, startRace, toMenu, stepKart, aiInput, humanInput, ranks, hold(v) { manual = v; }, perf, resetPerf() { perf.frames = perf.upd = perf.drw = 0; }, MAXV, BOOSTV, LAPS, KW, SEG, trackLen: () => trackLen, N: () => N, PROP, RACERS, CTRL, downNow, dragEl, press(code) { KEYS.add(code); downNow.add(code); }, release(code) { KEYS.delete(code); downNow.delete(code); }, fmt, ITEMS, useItem, crash, segAt, PERS, LINE: () => LINE, encodeGhost, decodeGhost, ghostAt, trackFingerprint, shareLink, shareChallenge, setLogical, pickRacer, loadGhostFromHash, size: () => [W, H] };
+window.__race = { G, KEYS, TOUCH, PADS, segs, mark, update, draw, startRace, toMenu, stepKart, aiInput, humanInput, ranks, hold(v) { manual = v; }, perf, resetPerf() { perf.frames = perf.upd = perf.drw = 0; }, MAXV, BOOSTV, LAPS, KW, SEG, trackLen: () => trackLen, N: () => N, PROP, RACERS, CTRL, downNow, dragEl, press(code) { KEYS.add(code); downNow.add(code); }, release(code) { KEYS.delete(code); downNow.delete(code); }, fmt, ITEMS, ITEM_INFO, helpLines, hudPane, ctxRef: ctx, TSTEER, bassState, beatPhase, onBeatNow, openHelp, closeHelp, updateItemButton, BASS_MIN_T, BASS_MIN, useItem, crash, segAt, PERS, LINE: () => LINE, encodeGhost, decodeGhost, ghostAt, trackFingerprint, shareLink, shareChallenge, setLogical, pickRacer, loadGhostFromHash, size: () => [W, H] };
 })();
 </script>
-</body>
+<div aria-hidden="true" id="aorBuildStamp" style="position:fixed;left:50%;bottom:2px;transform:translateX(-50%);z-index:2147483000;pointer-events:none;font:700 9px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;color:#fff;mix-blend-mode:difference;opacity:.5">TEST BUILD ce29540</div></body>
 </html>
