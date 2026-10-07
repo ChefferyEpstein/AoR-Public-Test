@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en-GB">
-<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · M05E.1 CANDIDATE · src 10531a8">
+<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · M05E.1 CANDIDATE · src 6e4f2cd">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 
@@ -10,18 +10,20 @@
   html,body{margin:0;height:100%;background:#0a0a0a;overflow:hidden;overscroll-behavior:none;touch-action:none;user-select:none;-webkit-user-select:none;
     -webkit-tap-highlight-color:transparent;font-family:ui-monospace,Menlo,Consolas,monospace}
   #c{position:fixed;display:block;background:#000}
-  .pad{position:fixed;display:none;width:var(--b);height:var(--b);border:3px solid #d6ff00;border-radius:14px;background:rgba(10,10,10,.5);color:#d6ff00;
-    font:900 calc(var(--b)*.34)/1 inherit;align-items:center;justify-content:center;touch-action:none;z-index:3}
-  .pad.on{background:rgba(214,255,0,.4)}
-  body.touch .pad{display:flex}
+  #drag{position:fixed;inset:0;z-index:2;touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+  #titleUI{position:fixed;left:0;right:0;display:none;z-index:4;justify-content:center;align-items:center;gap:8px;padding:8px;box-sizing:border-box;touch-action:none}
+  body.touch.title #titleUI{display:flex}
+  #titleUI button{min-width:52px;min-height:56px;border:3px solid #d6ff00;border-radius:12px;background:rgba(10,10,10,.8);color:#d6ff00;font:900 22px ui-monospace,Menlo,Consolas,monospace;touch-action:none}
+  #titleUI #tCount{min-width:76px;text-align:center;color:#f4f4f0;font:900 18px ui-monospace,Menlo,Consolas,monospace}
+  #titleUI #tStart{background:#d6ff00;color:#0a0a0a;min-width:96px}
   #hint{position:fixed;left:0;right:0;display:none;text-align:center;color:#6b7186;font-size:11px;letter-spacing:.06em}
 </style>
 </head>
 <body>
 <canvas id="c" width="640" height="360" role="img" aria-label="Return With The Drinks runner game"></canvas>
-<div id="hint">TURN YOUR PHONE SIDEWAYS FOR A BIGGER PICTURE</div>
-<div class="pad" id="padL" data-k="left">&#9664;</div>
-<div class="pad" id="padR" data-k="right">&#9654;</div>
+<div id="hint">DRAG LEFT / RIGHT ANYWHERE TO STEER &middot; SMOOTH = LESS SPILL</div>
+<div id="drag" aria-hidden="true"></div>
+<div id="titleUI"><button type="button" id="tFewer" aria-label="fewer drinks">&minus;</button><span id="tCount"></span><button type="button" id="tMore" aria-label="more drinks">+</button><button type="button" id="tStart">START</button></div>
 <script>
 /* RETURN WITH THE DRINKS: forward runner R01 (prototype). Standalone: no network, no storage, no analytics, no links out.
    Fictional demo scoring only: no real discounts or rewards. Fixed 60 Hz sim so it is testable. */
@@ -35,6 +37,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), hash = (n) => { n = (n <
 /* ---------- tuning (the whole feel lives here) ---------- */
 const TUNE = { vmax: 1.15, rampUp: 0.1, rampDown: 0.12,   // steering: u eases toward the input, lateral speed = u * vmax
   K: 45, Cdamp: 2.2, G: 2.3, spill: 0.5, spillRate: 1.4,  // slosh spring: stiffness, damping, forcing from lateral acceleration, threshold, loss/s
+  dragKp: 14, dragKd: 1.5, dragSpan: 0.62,   // touch: finger travel (fraction of screen width) that moves the tray across the whole floor; PD gains turn 'where the finger wants the tray' into a steer
   speed0: 12, speed1: 20, length: 900, trayBase: 0.09, trayPer: 0.013, bump: [6, 0.07], stool: [10, 0.16] };
 
 /* ---------- course ---------- */
@@ -57,7 +60,7 @@ function makeCourse(n, empty) { // rows come at you; the gap narrows, rows get c
 
 /* ---------- state ---------- */
 const G = { state: 'title', t: 0, n: 3, px: 0, vx: 0, u: 0, z: 0, speed: 12, ax: 0, rows: [], cups: [], parts: [], toasts: [], bump: 0, near: 0, bumps: 0, stoolHits: 0, E: 0, Es: 0, time: 0, flash: 0, shake: 0, result: null, empty: false, best: null, slow: 0, lastSlosh: 0 };
-const input = { left: false, right: false, axis: null }; const pressed = new Set();
+const input = { left: false, right: false, axis: null }; const pressed = new Set(); const drag = { id: null, x0: 0, px0: 0, target: 0, type: '' };
 const trayHalf = () => TUNE.trayBase + TUNE.trayPer * G.n;
 function start(n, empty) {
   G.n = n; G.empty = !!empty; G.px = 0; G.vx = 0; G.u = 0; G.z = 0; G.speed = TUNE.speed0; G.rows = makeCourse(n, G.empty); G.rows.forEach((r) => { r.done = false; r.hit = false; });
@@ -70,7 +73,9 @@ function droplets(ci, n) { const cup = cupX(ci); for (let i = 0; i < n; i++) G.p
 const CUP_W = 46, CUP_GAP = 8, cupX = (i) => CX + (i - (G.n - 1) / 2) * (CUP_W + CUP_GAP);
 
 /* ---------- update ---------- */
-function steerInput() { if (input.axis !== null) return input.axis; return (input.right ? 1 : 0) - (input.left ? 1 : 0); }
+function steerInput() { if (input.axis !== null) return input.axis;                                  // tests can drive an analogue axis directly
+  if (drag.id !== null) { const e = drag.target - G.px; if (Math.abs(e) < 0.012 && Math.abs(G.vx) < 0.06) return 0; return clamp(TUNE.dragKp * e - TUNE.dragKd * G.vx, -1, 1); }   // finger down: follow it, with damping so it settles instead of hunting
+  return (input.right ? 1 : 0) - (input.left ? 1 : 0); }
 function physics() { // pure-ish: steering -> lateral accel -> slosh springs -> spill
   const d = steerInput(); const rate = d !== 0 ? TUNE.rampUp : TUNE.rampDown; G.u += clamp(d - G.u, -rate, rate);
   const vx0 = G.vx; G.vx = G.u * TUNE.vmax + (G.knock || 0); G.knock = (G.knock || 0) * 0.9; G.px = clamp(G.px + G.vx * DT, -1.05, 1.05); G.ax = (G.vx - vx0) / DT;
@@ -99,9 +104,10 @@ function finish() {
   G.result = { grade, score, liquidPct: Math.round(lv / n * 100), delivered, n, smoothPct: Math.round(smooth * 100), near: G.near, bumps: G.bumps, secs: Math.round(G.time) }; if (!G.best || score > G.best.score) G.best = G.result; G.state = 'done'; G.card = 0; SFX.done();
 }
 function update() {
+  document.body.classList.toggle('title', G.state === 'title'); const tc = document.getElementById('tCount'); if (tc && tc.dataset.n !== String(G.n)) { tc.dataset.n = G.n; tc.textContent = G.n + ' DRINKS'; }
   G.t++; const go = pressed.has('Enter') || pressed.has('Space') || pressed.has('click') || pressed.has('tap');
   if (pressed.has('KeyM')) audio.muted = !audio.muted;
-  if (G.state === 'title') { if (pressed.has('ArrowLeft') || pressed.has('KeyA') || pressed.has('padL')) G.n = Math.max(2, G.n - 1); if (pressed.has('ArrowRight') || pressed.has('KeyD') || pressed.has('padR')) G.n = Math.min(6, G.n + 1); if (go) start(G.n); }
+  if (G.state === 'title') { if (pressed.has('ArrowLeft') || pressed.has('KeyA') || pressed.has('padL')) G.n = Math.max(2, G.n - 1); if (pressed.has('ArrowRight') || pressed.has('KeyD') || pressed.has('padR')) G.n = Math.min(6, G.n + 1); const tapStart = pressed.has('Enter') || pressed.has('Space') || pressed.has('tap') || (!document.body.classList.contains('touch') && pressed.has('click')); if (tapStart) start(G.n); }   // on a phone only START starts (a stray tap can't)
   else if (G.state === 'play') {
     if (pressed.has('Escape') || pressed.has('KeyP')) G.state = 'paused'; else if (pressed.has('KeyR')) start(G.n, G.empty);
     else { physics(); updateWorld(); if (G.bump > 0) G.bump--; if (liquid() <= 0.001 && G.state === 'play') { G.state = 'fail'; G.card = 0; SFX.fail(); } music(); }
@@ -176,7 +182,7 @@ function draw() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   if (G.state === 'title') { drawBG(); drawFloor(); G.cups = G.cups.length === G.n ? G.cups : Array.from({ length: G.n }, () => ({ lv: 1, s: Math.sin(G.t / 20) * 0.1, ds: 0, k: 45 })); drawTray(); ctx.fillStyle = 'rgba(10,10,10,.6)'; ctx.fillRect(0, 0, W, H);
     T('RETURN WITH THE DRINKS', 64, 40, C.acid); T('RUNNER R01  PROTOTYPE', 92, 16, C.paper); T('Carry the round through the rave. Steer smoothly. Do not spill the fucking lot.', 126, 14, '#aaa');
-    T(`TAKE  ${G.n}  DRINKS`, 176, 30, C.paper); T(`more drinks = more points, more slosh`, 200, 13, '#aaa'); T('LEFT / RIGHT to choose  ·  SPACE or TAP to go', 232, 14, C.acid); T('STEER  A D / ARROWS / LEFT-RIGHT PADS   P PAUSE   R RESTART   M SOUND', 256, 11, '#778');
+    T(`TAKE  ${G.n}  DRINKS`, 176, 30, C.paper); T(`more drinks = more points, more slosh`, 200, 13, '#aaa'); T(document.body.classList.contains('touch') ? 'pick the number below, then START' : 'LEFT / RIGHT to choose  ·  SPACE or TAP to go', 232, 14, C.acid); T(document.body.classList.contains('touch') ? 'STEER: DRAG LEFT / RIGHT ANYWHERE ON THE SCREEN' : 'STEER  A D / ARROWS / DRAG WITH THE MOUSE   P PAUSE   R RESTART   M SOUND', 256, 11, '#778');
     T('DEMO SCORING ONLY. NO REAL REWARDS.', 280, 11, '#778'); if (G.best) T(`BEST ${G.best.score}  ${G.best.grade}`, 306, 16, C.blue); return; }
   ctx.save(); if (G.shake > 0) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
   drawBG(); drawFloor(); drawCrowdSides(); drawObjects(); ctx.restore(); if (G.flash > 0) { ctx.fillStyle = `rgba(255,46,99,${G.flash / 24})`; ctx.fillRect(0, 0, W, H); }
@@ -192,21 +198,30 @@ function draw() {
 const KMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
 addEventListener('keydown', (e) => { if (e.metaKey || e.ctrlKey || e.altKey) return; audioInit(); if (KMAP[e.code] || ['Space', 'Enter', 'Escape', 'KeyP', 'KeyM', 'KeyR'].includes(e.code)) e.preventDefault(); if (!e.repeat) pressed.add(e.code); if (KMAP[e.code]) input[KMAP[e.code]] = true; });
 addEventListener('keyup', (e) => { if (KMAP[e.code]) input[KMAP[e.code]] = false; });
-addEventListener('blur', () => { input.left = input.right = false; if (G.state === 'play') G.state = 'paused'; });
-cv.addEventListener('pointerdown', (e) => { audioInit(); pressed.add('click'); if (e.pointerType === 'mouse' && G.state === 'play') { const r = cv.getBoundingClientRect(); input[(e.clientX - r.left) < r.width / 2 ? 'left' : 'right'] = true; } });
-for (const ev of ['pointerup', 'pointercancel']) addEventListener(ev, (e) => { if (e.pointerType === 'mouse') { input.left = input.right = false; } });
-const padSets = { left: new Set(), right: new Set() };
-document.querySelectorAll('.pad').forEach((el) => { const k = el.dataset.k; const set = (id, on) => { if (on) padSets[k].add(id); else padSets[k].delete(id); input[k] = padSets[k].size > 0; el.classList.toggle('on', input[k]); };
-  el.addEventListener('pointerdown', (e) => { e.preventDefault(); audioInit(); el.setPointerCapture(e.pointerId); set(e.pointerId, true); if (G.state === 'title') pressed.add(k === 'left' ? 'padL' : 'padR'); else if (G.state !== 'play') pressed.add('tap'); });
-  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, (e) => set(e.pointerId, false)); el.addEventListener('contextmenu', (e) => e.preventDefault()); });
+addEventListener('blur', () => { input.left = input.right = false; endDrag(); if (G.state === 'play') G.state = 'paused'; });
+/* Touch / mouse steering: drag anywhere. The finger's travel since it went down (not its absolute X) says where the tray should be, so there is no
+   teleporting; the damped follower below turns that into a steer, so a smooth hand is a smooth tray and a jerky hand is a violent one (= slosh).
+   If the finger runs past the edge of the floor the anchor slides with it, so reversing never has to "unwind" the overshoot. */
+const dragEl = document.getElementById('drag');
+const endDrag = (e) => { if (drag.id !== null && (e === undefined || e.pointerId === drag.id)) { drag.id = null; } };
+dragEl.addEventListener('pointerdown', (e) => { audioInit(); pressed.add('click'); e.preventDefault();
+  if (G.state === 'play' && drag.id === null && e.isPrimary !== false) { drag.id = e.pointerId; drag.type = e.pointerType; drag.x0 = e.clientX; drag.px0 = G.px; drag.target = G.px; try { dragEl.setPointerCapture(e.pointerId); } catch (_) { /* capture is a nicety */ } } });
+dragEl.addEventListener('pointermove', (e) => { if (e.pointerId !== drag.id) return; const gain = 2 / (TUNE.dragSpan * Math.max(280, innerWidth)), want = drag.px0 + (e.clientX - drag.x0) * gain, lim = 1.05;
+  if (want > lim) { drag.x0 = e.clientX - (lim - drag.px0) / gain; drag.target = lim; } else if (want < -lim) { drag.x0 = e.clientX - (-lim - drag.px0) / gain; drag.target = -lim; } else drag.target = want; });
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) dragEl.addEventListener(ev, endDrag);
+dragEl.addEventListener('contextmenu', (e) => e.preventDefault());
+addEventListener('visibilitychange', () => { if (document.hidden) endDrag(); });
+// title buttons act on a press that BEGAN on them (a lifted finger's synthetic click, aimed at whatever is under it, can never press START)
+function bindTap(el, fn) { let down = null; el.addEventListener('pointerdown', (e) => { audioInit(); down = e.pointerId; e.preventDefault(); }); el.addEventListener('pointerup', (e) => { if (down === e.pointerId) fn(); down = null; });
+  el.addEventListener('pointercancel', () => { down = null; }); el.addEventListener('click', (e) => { e.preventDefault(); if (e.detail === 0 && !e.pointerType) fn(); }); el.addEventListener('contextmenu', (e) => e.preventDefault()); }
+bindTap(document.getElementById('tFewer'), () => pressed.add('padL')); bindTap(document.getElementById('tMore'), () => pressed.add('padR')); bindTap(document.getElementById('tStart'), () => pressed.add('tap'));
 if (matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window) document.body.classList.add('touch');
 function fit() {
-  const w = innerWidth, h = innerHeight, portrait = h > w, touch = document.body.classList.contains('touch'); const b = Math.max(60, Math.min(100, Math.round(Math.min(w, h) * (portrait ? 0.22 : 0.24))));
-  document.documentElement.style.setProperty('--b', b + 'px'); let availH = touch && portrait ? h - b - 40 : h; const s = Math.min(w / W, availH / H), cw = Math.floor(W * s), ch = Math.floor(H * s);
+  const w = innerWidth, h = innerHeight, portrait = h > w, touch = document.body.classList.contains('touch');
+  const availH = touch && portrait ? h - 120 : h, sc = Math.min(w / W, availH / H), cw = Math.floor(W * sc), ch = Math.floor(H * sc);   // portrait phones keep the space under the picture free for the thumb
   cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; cv.style.left = Math.floor((w - cw) / 2) + 'px'; cv.style.top = touch && portrait ? '4px' : Math.floor((h - ch) / 2) + 'px';
-  const hint = document.getElementById('hint'); hint.style.display = touch && portrait ? 'block' : 'none'; hint.style.top = 4 + ch + 8 + 'px';
-  const L = document.getElementById('padL'), R = document.getElementById('padR'), y = h - b - (portrait ? 14 : 10); L.style.top = R.style.top = y + 'px'; L.style.left = '12px'; R.style.left = 'auto'; R.style.right = '12px';
-  if (!portrait) { L.style.width = R.style.width = Math.round(b * 1.2) + 'px'; } else { L.style.width = R.style.width = Math.round(b * 1.9) + 'px'; }
+  const hint = document.getElementById('hint'); hint.style.display = touch && portrait ? 'block' : 'none'; hint.style.top = 4 + ch + 10 + 'px';
+  const ui = document.getElementById('titleUI'); ui.style.top = touch && portrait ? (4 + ch + 40) + 'px' : 'auto'; ui.style.bottom = touch && portrait ? 'auto' : '10px';
 }
 addEventListener('resize', fit); addEventListener('orientationchange', fit); fit();
 
@@ -216,7 +231,7 @@ let acc = 0, prev = performance.now(), manual = false; const perf = { frames: 0,
 function frame(now) { if (!manual) { acc += Math.min(0.1, (now - prev) / 1000); while (acc >= DT) { const t0 = performance.now(); update(); perf.upd += performance.now() - t0; acc -= DT; } } prev = now; const t1 = performance.now(); draw(); perf.drw += performance.now() - t1; perf.frames++; requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
 // Test/debug hook for the automated checks. No effect on normal play; remove before any production use.
-window.__run = { G, TUNE, input, pressed, update, draw, start, hold(v) { manual = v; }, makeCourse, liquid, perf, resetPerf() { perf.frames = perf.upd = perf.drw = 0; }, trayHalf, W, H };
+window.__run = { drag, endDrag, G, TUNE, input, pressed, update, draw, start, hold(v) { manual = v; }, makeCourse, liquid, perf, resetPerf() { perf.frames = perf.upd = perf.drw = 0; }, trayHalf, W, H };
 })();
 </script>
 </body>

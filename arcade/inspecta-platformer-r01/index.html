@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en-GB">
-<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · M05E.1 CANDIDATE · src 10531a8">
+<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · M05E.1 CANDIDATE · src 6e4f2cd">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 
@@ -15,8 +15,9 @@
   .pad.on{background:rgba(214,255,0,.4)}
   body.touch .pad{display:flex}
   body.reward .pad,body.reward #hint{display:none!important}
-  #reward{position:fixed;inset:0;z-index:20;background:rgba(10,10,10,.97);color:#f4f4f0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;user-select:text;-webkit-user-select:text}
+  #reward{pointer-events:none;position:fixed;inset:0;z-index:20;background:rgba(10,10,10,.97);color:#f4f4f0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;user-select:text;-webkit-user-select:text}
   #reward[hidden]{display:none}
+  #reward.armed{pointer-events:auto}
   .rw-card{box-sizing:border-box;max-width:560px;margin:0 auto;padding:clamp(14px,3vw,28px) clamp(14px,4vw,28px) 28px;text-align:center}
   .rw-demo{margin:0 0 12px;padding:9px 10px;border:2px solid #ff2e63;color:#ff2e63;font-weight:900;font-size:12px;letter-spacing:.04em;line-height:1.35}
   #reward h2{margin:0;font-size:clamp(26px,7vw,44px);line-height:1;letter-spacing:-.02em}#reward h2 span{color:#d6ff00}
@@ -105,33 +106,38 @@ const R = (x, col, a, b, c, d) => { x.fillStyle = PAL[col]; x.fillRect(a, b, c, 
 const S_HEAD = px(['...NNNNNN...', '..NNNNNNNN..', '..aaaaaaaNNN', '..SsssssssN.', '..SssswksSs.', '...ssssssSss', '...sssssSSs.', '....SSSSSS..']);   // faces RIGHT: cap + brim, nose, eye
 const S_BODY = px(['...nnnnnnn...', '..nnnnnnnnnn.', '.nnnnnnnnaann', 'nnnnnnnnnaann', 'NNnnnnnnnnnN.', '.NNnnnnnnnN..', '..NNNNNNNN...']);       // hunched trench coat, tail trailing
 const S_SHOE = px(['..wwwwww......', '.wwwwwwwwwww..', 'wwwwwwwwwwwwww', 'wwwwwwwwwwwwww', 'wwwwwwwwwwwwkk', 'aaaaaaaaaaaaaa', 'AAAAAAAAAAAAAA']); // 14 px long: the star of the show
-const S_GLASS = px(['.hhh.', 'hbwbh', 'hbbbh', '.hhh.', '..N..', '..N..']);
 const SOLE = px(['kkkkkkkkkkkk', 'kakakakakaka', 'kkkkkkkkkkkk']); // the print a stomp leaves
 function leg(ctx2, x0, y0, x1, y1, col) { ctx2.fillStyle = PAL[col]; const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) ctx2.fillRect(Math.round(x0 + (x1 - x0) * i / n) - 1, Math.round(y0 + (y1 - y0) * i / n), 3, 2); }
-// stride table, in px from the body centre: A = near leg, B = far leg. Contact frames are wide (7 / -8), passing frames tuck the trailing foot up.
-const STRIDE = [[[7, 0], [-8, -3]], [[2, 0], [-2, -4]], [[-8, -3], [7, 0]], [[-2, -4], [2, 0]]];
+/* WALK CYCLE (draw-only: it reads how far he has travelled, never writes physics). Easy to refine: everything is in this table.
+   One foot's path over a 6-phase step, in px from the body centre (x: + is forward, y: - is up). The other foot runs the same path half a cycle later.
+     0 heel strike (reaching far ahead)  1 planted, loading  2 planted, pushing back  3 toe-off (trailing far behind, just lifting)
+     4 swing: knee up, foot high under the body  5 swing: foot reaches forward and down.
+   One phase lasts `pxPerPhase` px of travel, so bigger = longer, slower steps. Feet stay planted while the body goes over them (no skating). */
+const GAIT = { pxPerPhase: 11, path: [[12, 0], [5, 0], [-4, 0], [-12, -3], [-3, -9], [8, -6]], bob: [0, -1, -1, 0, -1, -1], lean: 2,
+  jumpUp: [[11, -5], [-11, -8]], jumpDown: [[9, -2], [-11, -4]], idle: [[4, 0], [-4, 0]], stomp: [[12, -1], [-12, -1]] };
+function gaitAt(dist) { const n = GAIT.path.length, t = (dist / GAIT.pxPerPhase) % n, i = Math.floor(t), f = t - i, at = (k) => { const a = GAIT.path[((i + k) % n + n) % n], b = GAIT.path[((i + k + 1) % n + n) % n]; return [Math.round(a[0] + (b[0] - a[0]) * f), Math.round(a[1] + (b[1] - a[1]) * f)]; };
+  const b0 = GAIT.bob[i], b1 = GAIT.bob[(i + 1) % n]; return { A: at(0), B: at(n / 2), bob: Math.round(b0 + (b1 - b0) * f), arm: Math.round(Math.cos((dist / GAIT.pxPerPhase / n) * 6.2832) * 3) }; }
 
 function drawInspecta(x, y, st) { // x,y = player's body top-left. Everything here is draw-only: it never reads or writes physics state.
   const bx = Math.round(x + 5), by = Math.round(y + 14), beat = st.beat, tier = st.tier, on = beat < 0.5;
-  const moving = st.ground && Math.abs(st.vx) > 0.3, ph = Math.floor(st.t / 6) % 4;
-  let A = [3, 0], B = [-3, 0], bDy = 0, bDx = 0, hDy = Math.floor(st.t / 36) % 2, hDx = 0, gDx = 0, gDy = 0, flip = false;
-  if (st.stomp > 0) { A = [9, -1]; B = [-9, -1]; hDy = 1; gDy = -2; }                          // landed on a head: toes spread, flat, ridiculous
-  else if (!st.ground) { if (st.vy < 0) { A = [8, -4]; B = [-8, -6]; gDy = -3; } else { A = [6, -1]; B = [-8, -3]; gDy = 1; } hDx = 1; }
-  else if (moving) { [A, B] = STRIDE[ph]; bDy = ph % 2 ? -1 : 0; hDy = ph % 2 ? 0 : 1; hDx = 2; gDx = ph % 2 ? 1 : 0; gDy = ph % 2 ? 1 : 0; }
+  const moving = st.ground && Math.abs(st.vx) > 0.3;
+  let A = GAIT.idle[0], B = GAIT.idle[1], bDy = 0, bDx = 0, hDy = Math.floor(st.t / 36) % 2, hDx = 0, gDx = 0, gDy = 0, flip = false;   // gDx/gDy = forward arm swing
+  if (st.stomp > 0) { [A, B] = GAIT.stomp; hDy = 1; gDy = -2; }                                 // landed on a head: toes spread, flat, ridiculous
+  else if (!st.ground) { [A, B] = st.vy < 0 ? GAIT.jumpUp : GAIT.jumpDown; gDy = st.vy < 0 ? -3 : 1; hDx = 1; }
+  else if (moving) { const g = gaitAt(st.gait != null ? st.gait : st.t * 1.7); A = g.A; B = g.B; bDy = g.bob; hDy = g.bob + 1; hDx = GAIT.lean; gDx = g.arm; }   // steady lean, no head wobble
   const pulse = Math.pow(1 - beat, 2), sw = Math.sin(beat * 6.2832);                          // beat-locked: 1 right on the beat, easing out
   if (tier >= 1) hDy += beat < 0.25 ? 1 : 0;                                                    // head bob on the beat
   if (tier >= 2) { if (!moving && st.ground) { if (on) A = [A[0], A[1] - 2]; else B = [B[0], B[1] - 2]; } else if (moving) { bDy -= Math.round(pulse * (tier >= 4 ? 3 : tier >= 3 ? 2 : 1.4)); hDy += Math.round(pulse); } }   // foot taps / bouncy stride
-  if (tier >= 3) { bDx += st.ground ? Math.round(sw) : 0; hDx += st.ground ? Math.round(sw) : 0; gDx += Math.round(sw * 2); gDy += Math.round(sw * 2); }   // shoulder sway, magnifier swing
+  if (tier >= 3) { bDx += st.ground ? Math.round(sw) : 0; hDx += st.ground ? Math.round(sw) : 0; gDx += Math.round(sw * 2); gDy += Math.round(sw * 2); }   // shoulder sway, arm swing
   if (tier >= 4) { if (st.ground && !moving) { flip = Math.floor(st.t / 29) % 4 >= 2; bDy += on ? -1 : 0; A = [A[0] + (on ? 3 : 0), A[1]]; B = [B[0] - (on ? 3 : 0), B[1]]; hDy += on ? -1 : 1; }
-    else if (moving) { A = [A[0] + 1, A[1]]; B = [B[0] - 1, B[1]]; hDy += Math.round(pulse * 2); gDy -= Math.round(pulse * 3); } }   // full send: stride stretched, head nodding, magnifier pumping
+    else if (moving) { A = [A[0] + 1, A[1]]; B = [B[0] - 1, B[1]]; hDy += Math.round(pulse * 2); gDy -= Math.round(pulse * 3); } }   // full send: stride stretched, head nodding, arm pumping
   if (st.hurt) { A = [-5, -5]; B = [-8, -8]; hDx = -2; hDy = -1; gDy = -3; }
   ctx.save(); ctx.translate(bx, by); if ((st.face < 0) !== flip) ctx.scale(-1, 1);
   const hipY = -10 + bDy, shoe = (f) => ctx.drawImage(S_SHOE, f[0] - 5, -7 + f[1]);
   leg(ctx, -1 + bDx, hipY, B[0] - 1, -6 + B[1], 'f'); shoe(B);                                   // far leg + shoe
   ctx.drawImage(S_BODY, -7 + bDx, hipY - 7);                                                      // hunched coat
   ctx.drawImage(S_HEAD, -2 + bDx + hDx, hipY - 14 + hDy);                                         // head leads the way
-  ctx.fillStyle = PAL.n; ctx.fillRect(4 + bDx, hipY - 6 + gDy, 5 + gDx, 2); ctx.fillStyle = PAL.s; ctx.fillRect(9 + bDx + gDx, hipY - 6 + gDy, 2, 2);   // forward arm + hand
-  ctx.drawImage(S_GLASS, 8 + bDx + gDx, hipY - 12 + gDy);                                         // magnifier
+  ctx.fillStyle = PAL.n; ctx.fillRect(4 + bDx, hipY - 6 + gDy, 5 + gDx, 2); ctx.fillStyle = PAL.s; ctx.fillRect(9 + bDx + gDx, hipY - 6 + gDy, 2, 2);   // forward arm + hand (empty: no magnifier)
   leg(ctx, 1 + bDx, hipY, A[0] - 1, -6 + A[1], 'h'); shoe(A);                                     // near leg + shoe
   if (tier >= 3) for (let k = 0; k < (tier >= 4 ? 3 : 2); k++) { const q = (st.t / 45 + k / 3) % 1; ctx.fillStyle = q < 0.8 ? PAL.a : PAL.f; const nx = Math.round(-2 + (k - 1) * 7 + Math.sin(q * 6 + k) * 2), ny = Math.round(hipY - 16 - q * 14); ctx.fillRect(nx, ny + 3, 3, 2); ctx.fillRect(nx + 2, ny - 1, 1, 5); ctx.fillRect(nx + 3, ny - 1, 2, 1); }   // little music notes drift up
   ctx.restore();
@@ -341,7 +347,7 @@ const waveTier = (w) => (w >= 10 ? 4 : w >= 6 ? 3 : w >= 3 ? 2 : w >= 1 ? 1 : 0)
 /* ---------- game state ---------- */
 const input = { left: false, right: false, jump: false, jumpPressed: false }, pressed = new Set();
 const G = { state: 'title', t: 0, li: 0, L: LEVELS[0], p: null, enemies: [], parts: [], cam: { x: 0, y: 0 }, score: 0, wavs: 0, stomps: 0, deaths: 0, combo: 0, card: 0, time: 0, lvTime: 0,
-  stats: [], pops: [], stompT: 0, reward: null, respawn: 0, shake: 0, flash: 0, boss: null, toasts: [], bossDone: false, result: null };
+  stats: [], pops: [], stompT: 0, walkDist: 0, reward: null, respawn: 0, shake: 0, flash: 0, boss: null, toasts: [], bossDone: false, result: null };
 const magTotal = () => LEVELS.reduce((a, l) => a + l.items.filter((i) => i.t === 'm').length, 0), wavTotal = () => LEVELS.reduce((a, l) => a + l.items.filter((i) => i.t === 'w').length, 0);
 const magGot = () => LEVELS.reduce((a, l) => a + l.items.filter((i) => i.t === 'm' && i.got).length, 0), wavGot = () => LEVELS.reduce((a, l) => a + l.items.filter((i) => i.t === 'w' && i.got).length, 0);
 function resetRun() { for (const l of LEVELS) { l.items.forEach((i) => { i.got = false; }); if (l.check) l.check.on = false; } Object.assign(G, { score: 0, wavs: 0, stomps: 0, deaths: 0, combo: 0, time: 0, bossDone: false, result: null }); }
@@ -349,7 +355,7 @@ function loadLevel(i) {
   G.li = i; G.L = ALL_LEVELS[i]; const L = G.L; G.p = newPlayer(L); G.parts = []; G.toasts = []; G.pops = []; G.stompT = 0; G.respawn = 0; G.lvTime = 0; G.boss = null;
   G.enemies = L.enemies.map((e) => ({ ...e, x: e.spawn.x, y: e.spawn.y, dir: -1, st: 'walk', t: 0, vy: 0 })); G.p.inv = 60;
   if (L.check) L.check.on = false; G.cam.x = 0; G.cam.y = 0; snapCam();
-  if (L.arena) { G.boss = { x: 11 * T, y: 10 * T - BH, w: BW, h: BH, face: -1, st: 'intro', t: 100, comp: 100, dir: -1, cool: 0, shake: 0, wins: 0, dz: 0, charges: 0, danceT: 0 }; }
+  if (L.arena) { G.boss = { x: 11 * T, y: 10 * T - BH, w: BW, h: BH, face: -1, side: -1, goalX: 11 * T, st: 'intro', t: 100, comp: 100, dir: -1, cool: 0, shake: 0, danceT: 0, stompsLeft: 0, chargeFrom: 0, stats: { charges: 0, stomps: 0, shrugs: 0, runups: [], entered: {} } }; }
 }
 function toast(m, c = PAL.a) { G.toasts.push({ m, t: 100, c }); if (G.toasts.length > 3) G.toasts.shift(); }
 function burst(x, y, col, n = 8) { for (let i = 0; i < n; i++) G.parts.push({ x, y, vx: (Math.random() - 0.5) * 2.4, vy: -Math.random() * 2.2 - 0.4, t: 28 + (Math.random() * 14 | 0), c: col }); }
@@ -366,7 +372,7 @@ function hurtPlayer(srcX) {
 function die() { G.deaths++; G.respawn = 70; G.combo = 0; SFX.die(); burst(G.p.x + 5, G.p.y + 7, PAL.r, 14); G.p.hp = 0; }
 function doRespawn() {
   const L = G.L, p = newPlayer(L), c = L.check && L.check.on ? [L.check.sx, L.check.sy] : L.start; p.x = c[0] * T + 3; p.y = c[1] * T + 2; p.inv = 90; G.p = p; G.respawn = 0; snapCam();
-  if (G.boss && G.boss.st !== 'dance' && G.boss.st !== 'gone') { G.boss.st = 'idle'; G.boss.t = 60; G.boss.x = 11 * T; G.boss.y = 10 * T - BH; }
+  if (G.boss && G.boss.st !== 'dance' && G.boss.st !== 'gone') { G.boss.x = 11 * T; G.boss.y = 10 * T - BH; bossTo(G.boss, 'repositioning', 140); }
 }
 
 function updateEnemies() {
@@ -402,26 +408,42 @@ function updateItems() {
 
 /* ---------- Bouncer ---------- */
 function bossDamage() { return 18 + 2 * G.wavs; }
+/* The Bouncer is a small state machine. Each state has one job and one way out, and DAZED can only be entered from a CHARGE that
+   really ran up:  repositioning -> windup -> charge -> dazed -> recovering -> repositioning ...
+   - DAZED is the only vulnerable state, and it carries a budget of stomps (STOMPS_PER_DAZE). Spend it, or run out the clock, and he gets up.
+   - RECOVERING is a fixed, readable "getting up" beat: no damage to him, no damage to you, and a landing on his head is shrugged off.
+   - REPOSITIONING walks him to a spot with a real run-up (>= RUNUP_ROOM) on the side he committed to, so a charge can never be a short bonk.
+   - A landing on his head in any state but DAZED just shoves you off (SHRUG). Riding his head is not a safe place to stand. */
+const RUNUP_ROOM = 150, RUNUP_MIN = 100, STOMPS_PER_DAZE = 2, RECOVER_FRAMES = 54, BOSS_LEFT = T + 1, BOSS_RIGHT = 19 * T - 1 - BW;
+const bossRoom = (b, d) => (d > 0 ? BOSS_RIGHT - b.x : b.x - BOSS_LEFT);      // free run in direction d
+function bossTo(b, st, t) { b.st = st; b.t = t; if (st === 'repositioning') { // commit to a side now; walk to where that side has a proper run-up
+    const side = Math.sign(G.p.x + 5 - (b.x + b.w / 2)) || b.face || -1; b.side = side; b.face = side; b.goalX = bossRoom(b, side) >= RUNUP_ROOM ? b.x : Math.max(BOSS_LEFT, Math.min(BOSS_RIGHT, (side > 0 ? BOSS_RIGHT : BOSS_LEFT) - side * RUNUP_ROOM)); }
+  if (st === 'dazed') b.stompsLeft = STOMPS_PER_DAZE; if (b.stats) b.stats.entered[st] = (b.stats.entered[st] || 0) + 1; }
 function updateBoss() {
   const b = G.boss, p = G.p; if (!b) return; b.t--; b.cool = Math.max(0, b.cool - 1); b.shake = Math.max(0, b.shake - 1);
-  const wall = (nx) => nx < T + 1 || nx + b.w > 19 * T - 1, tele = Math.round(Math.min(90, 50 + G.wavs * 2) * (b.comp < 50 ? 0.8 : 1)), speed = (b.comp < 50 ? 3.1 : 2.5);
-  if (b.st === 'intro') { if (b.t <= 0) { b.st = 'idle'; b.t = 50; } }
-  else if (b.st === 'idle') { const d = Math.sign(p.x - b.x); b.face = d || b.face; const nx = b.x + d * 0.5; if (!wall(nx)) b.x = nx; if (b.t <= 0) { const room = b.face > 0 ? 19 * T - 1 - b.w - b.x : b.x - (T + 1); if (room < 110) { b.st = 'recover'; b.t = 110; } else { b.st = 'tele'; b.t = tele; b.dir = b.face; SFX.boss(); } } }  // never wind up with no room to run
-  else if (b.st === 'tele') { b.face = Math.sign(p.x - b.x) || b.face; b.dir = b.face; if (b.t <= 0) { b.st = 'charge'; b.t = 120; } }
-  else if (b.st === 'charge') { const nx = b.x + b.dir * speed; if (wall(nx)) { b.x = Math.max(T + 1, Math.min(19 * T - 1 - b.w, nx)); b.st = 'dazed'; b.t = 120 + G.wavs * 5; G.shake = 14; SFX.boss(); b.cool = 20; } else b.x = nx; if (b.t <= 0) { b.st = 'idle'; b.t = 40; } }
-  else if (b.st === 'dazed') { if (b.t <= 0) { b.st = 'recover'; b.t = 110; } }
-  else if (b.st === 'recover') { // no stun-lock: he walks back to get a proper run-up (>= 150 px) before he is allowed to charge toward you again
-    const s = Math.sign(p.x + 5 - (b.x + b.w / 2)) || b.face, wx = s > 0 ? 19 * T - 1 - b.w : T + 1, tx = Math.max(T + 1, Math.min(19 * T - 1 - b.w, wx - s * 150)); b.face = s;
-    const dx = tx - b.x; if (Math.abs(dx) > 1.8) b.x += Math.sign(dx) * 1.8; if (Math.abs(dx) <= 1.8 || b.t <= 0) { b.st = 'idle'; b.t = 24; } }
+  const windup = Math.round(Math.min(90, 50 + G.wavs * 2) * (b.comp < 50 ? 0.8 : 1)), speed = b.comp < 50 ? 3.1 : 2.5;
+  if (b.st === 'intro') { if (b.t <= 0) bossTo(b, 'repositioning', 140); }
+  else if (b.st === 'repositioning') { const dx = b.goalX - b.x; if (Math.abs(dx) > 1.8) b.x += Math.sign(dx) * 1.8; b.face = b.side;
+    if ((Math.abs(dx) <= 1.8 && b.t < 140 - 24) || b.t <= 0) bossTo(b, 'windup', windup); }                     // always at least a 24-frame beat, even if he is already placed
+  else if (b.st === 'windup') { let d = Math.sign(p.x - b.x) || b.face; if (bossRoom(b, d) < RUNUP_MIN) d = b.side; b.face = b.dir = d;                        // he may re-aim at you, but never into a wall he is already at
+    if (b.t <= 0) { b.st = 'charge'; b.t = 120; b.chargeFrom = b.x; b.stats.charges++; } }
+  else if (b.st === 'charge') { const nx = b.x + b.dir * speed;
+    if (nx < BOSS_LEFT || nx > BOSS_RIGHT) { b.x = Math.max(BOSS_LEFT, Math.min(BOSS_RIGHT, nx)); G.shake = 14; SFX.boss(); b.cool = 20;
+      b.stats.runups.push(Math.round(Math.abs(b.x - b.chargeFrom)));
+      if (Math.abs(b.x - b.chargeFrom) >= RUNUP_MIN) bossTo(b, 'dazed', 130 + G.wavs * 4); else bossTo(b, 'recovering', 30); }   // a short bonk never dazes
+    else b.x = nx; if (b.t <= 0 && b.st === 'charge') bossTo(b, 'recovering', 30); }
+  else if (b.st === 'dazed') { if (b.t <= 0 || b.stompsLeft <= 0) bossTo(b, 'recovering', RECOVER_FRAMES); }
+  else if (b.st === 'recovering') { if (b.t <= 0) bossTo(b, 'repositioning', 140); }
   else if (b.st === 'dance') { b.danceT++; if (b.danceT > 180 && b.x > 5 * T) b.x -= 0.6; if (b.danceT > 300) { b.st = 'gone'; G.bossDone = true; toast('THE DOOR IS OPEN', PAL.a); } }
   if (b.st === 'dance' || b.st === 'gone' || G.respawn > 0 || G.state !== 'play') return;
   const over = p.x + p.w > b.x && p.x < b.x + b.w && p.y + p.h > b.y && p.y < b.y + b.h, prevBottom = p.y + p.h - p.vy;
-  if (p.x + p.w + 4 > b.x && p.x - 4 < b.x + b.w && p.y + p.h > b.y && p.y < b.y + b.h && p.vy > 0 && prevBottom <= b.y + 8) {
+  if (p.x + p.w + 4 > b.x && p.x - 4 < b.x + b.w && p.y + p.h > b.y && p.y < b.y + b.h && p.vy > 0 && prevBottom <= b.y + 8) {   // landed on his head
     p.vy = input.jump ? -5.4 : -4.4; p.onGround = false; SFX.stomp();
-    if (b.st === 'dazed' && b.cool <= 0) { const dmg = bossDamage(); b.comp = Math.max(0, b.comp - dmg); b.cool = 56; G.score += 500; G.shake = 8; burst(b.x + 14, b.y, PAL.a, 16); toast(`BASS DROP -${dmg}`, PAL.a);
-      if (b.comp <= 0) { b.st = 'dance'; b.danceT = 0; SFX.clear(); toast('HE CAN\'T RESIST', PAL.a); } }
-    else if (b.st !== 'dazed') { toast('HE\'S NOT DAZED. USE THE WALL.', PAL.w); }
-  } else if (over && b.st !== 'dazed' && b.st !== 'intro') hurtPlayer(b.x + b.w / 2);
+    if (b.st === 'dazed') {
+      if (b.cool <= 0 && b.stompsLeft > 0) { const dmg = bossDamage(); b.comp = Math.max(0, b.comp - dmg); b.cool = 40; b.stompsLeft--; b.stats.stomps++; G.score += 500; G.shake = 8; burst(b.x + 14, b.y, PAL.a, 16); toast(`BASS DROP -${dmg}`, PAL.a);
+        if (b.comp <= 0) { b.st = 'dance'; b.danceT = 0; SFX.clear(); toast('HE CAN\'T RESIST', PAL.a); } }
+    } else if (b.st !== 'intro') { b.stats.shrugs++; p.stun = 10; p.vx = (p.x + 5 < b.x + b.w / 2 ? -1 : 1) * 2.4; toast(b.st === 'recovering' ? 'HE\'S GETTING UP. WAIT FOR THE WALL.' : 'HE SHRUGS YOU OFF. USE THE WALL.', PAL.w); }
+  } else if (over && (b.st === 'repositioning' || b.st === 'windup' || b.st === 'charge')) hurtPlayer(b.x + b.w / 2);   // awake and moving: he hurts. Dazed or getting up: he does not.
 }
 
 /* ---------- update ---------- */
@@ -443,13 +465,13 @@ function update() {
   G.parts.forEach((q) => { q.x += q.vx; q.y += q.vy; q.vy += 0.1; q.t--; }); G.parts = G.parts.filter((q) => q.t > 0); G.pops.forEach((q) => { q.t--; q.y -= 0.5; }); G.pops = G.pops.filter((q) => q.t > 0); if (G.stompT > 0) G.stompT--;
   if (G.shake > 0) G.shake--; input.jumpPressed = false; pressed.clear();
 }
-function begin(i) { loadLevel(i); G.state = 'intro'; G.card = 120; G.combo = 0; }
+function begin(i) { releaseGameplayInput(); loadLevel(i); G.state = 'intro'; G.card = 120; G.combo = 0; }
 function loadedPreview() { /* intro card is drawn over the level */ }
 function tick() {
   const p = G.p, L = G.L; G.time++; G.lvTime++;
   if (G.respawn > 0) { if (--G.respawn <= 0) doRespawn(); return; }
   p.inv = Math.max(0, p.inv - 1);
-  const f = stepPlayer(p, { left: input.left, right: input.right, jump: input.jump, jumpPressed: input.jumpPressed }, L);
+  const f = stepPlayer(p, { left: input.left, right: input.right, jump: input.jump, jumpPressed: input.jumpPressed }, L); if (p.onGround) G.walkDist += Math.abs(p.vx);   // draw-only: how far he has walked, for the step cycle
   if (f & 4) SFX.jump(); if (f & 8) G.combo = 0;
   if (f & 2) { die(); return; }
   if (f & 1) hurtPlayer(p.x + 5 + (p.vx >= 0 ? -6 : 6));
@@ -458,7 +480,7 @@ function tick() {
   music(waveTier(G.wavs), L.theme);
 }
 function levelDone() {
-  SFX.clear();
+  SFX.clear(); releaseGameplayInput();
   if (G.L.arena) { G.state = 'end'; G.card = 0; finish(); return; }
   G.stats[G.li] = { mags: G.L.items.filter((i) => i.t === 'm' && i.got).length, wavs: G.L.items.filter((i) => i.t === 'w' && i.got).length, t: G.lvTime };
   G.state = 'clear'; G.card = 0;
@@ -498,14 +520,14 @@ function drawItems(L) { const fr = Math.floor(G.t / 12) % 2; for (const it of L.
 function drawEnemies() { for (const e of G.enemies) { if (e.st === 'dead') continue; const x = Math.round(e.x - G.cam.x) - 3, y = Math.round(e.y - G.cam.y) - 6;
   if (e.st === 'squash') { ctx.drawImage(CHAV_SQ[e.k], x, y + 13); ctx.drawImage(SOLE, x + 3, y + 14); if (e.t > 22) R(ctx, 'w', x, y + 13, 18, 7); continue; } ctx.save(); if (e.dir > 0) { ctx.translate(x + 18, y); ctx.scale(-1, 1); ctx.drawImage(CHAV[e.k][Math.floor(e.t / 10) % 2], 0, 0); } else ctx.drawImage(CHAV[e.k][Math.floor(e.t / 10) % 2], x, y); ctx.restore(); } }
 function drawBoss() { const b = G.boss; if (!b) return; const mood = b.comp > 66 ? 0 : b.comp > 33 ? 1 : 2; const sp = BOUNCER[b.st === 'dance' || b.st === 'gone' ? 2 : mood], ph = bph();
-  let ox = 0, oy = 0; if (b.st === 'tele') ox = (G.t % 4 < 2 ? -1 : 1); if (b.st === 'dazed') ox = (G.t % 6 < 3 ? -1 : 1); if (b.st === 'charge') ox = -b.dir * 2;
+  let ox = 0, oy = 0; if (b.st === 'windup') ox = (G.t % 4 < 2 ? -1 : 1); if (b.st === 'recovering') oy = G.t % 16 < 8 ? 1 : 0; if (b.st === 'dazed') ox = (G.t % 6 < 3 ? -1 : 1); if (b.st === 'charge') ox = -b.dir * 2;
   if (b.st === 'dance' || b.st === 'gone') { oy = ph < 0.5 ? -3 : 0; ox = ph < 0.5 ? -2 : 2; } else if (mood === 2) oy = ph < 0.25 ? -2 : 0; else if (mood === 1) oy = ph < 0.1 ? -1 : 0;
   const x = Math.round(b.x - G.cam.x) - 8 + ox, y = Math.round(b.y - G.cam.y) - 22 + oy; ctx.save(); if (b.face > 0 && b.st !== 'dance') { ctx.translate(x + 44, y); ctx.scale(-1, 1); ctx.drawImage(sp, 0, 0); } else ctx.drawImage(sp, x, y); ctx.restore();
-  if (b.st === 'tele') { txt('NO.', x + 22, y - 8, ((G.t >> 2) & 1) ? PAL.r : PAL.w, 2, 'c'); R(ctx, 'r', Math.round(b.x + (b.dir > 0 ? b.w : -40) - G.cam.x), Math.round(b.y + 14 - G.cam.y), 40, 2); }
-  if (b.st === 'dazed') for (let i = 0; i < 3; i++) R(ctx, 'y', x + 14 + i * 7 + Math.round(Math.cos(G.t / 6 + i * 2) * 3), y - 6 + Math.round(Math.sin(G.t / 6 + i * 2)), 3, 3);
+  if (b.st === 'windup') { txt('NO.', x + 22, y - 8, ((G.t >> 2) & 1) ? PAL.r : PAL.w, 2, 'c'); R(ctx, 'r', Math.round(b.x + (b.dir > 0 ? b.w : -40) - G.cam.x), Math.round(b.y + 14 - G.cam.y), 40, 2); }
+  if (b.st === 'dazed' || b.st === 'recovering') for (let i = 0; i < (b.st === 'dazed' ? 3 : 1 + (b.t >> 4) % 2); i++) R(ctx, 'y', x + 14 + i * 7 + Math.round(Math.cos(G.t / 6 + i * 2) * 3), y - 6 + Math.round(Math.sin(G.t / 6 + i * 2)), 3, 3);
   if (b.st === 'dance' || b.st === 'gone') for (let i = 0; i < 3; i++) R(ctx, 'a', x + 6 + i * 14, y - 4 - ((G.t >> 2) + i * 3) % 8, 2, 2); }
 function drawPlayer() { const p = G.p; if (G.respawn > 0) return; if (p.inv > 0 && p.stun <= 0 && ((G.t >> 2) & 1)) return;
-  drawInspecta(Math.round(p.x - G.cam.x), Math.round(p.y - G.cam.y), { face: p.face, vx: p.vx, vy: p.vy, ground: p.onGround, t: p.t, tier: waveTier(G.wavs), hurt: p.stun > 0, beat: bph(), stomp: G.stompT }); }
+  drawInspecta(Math.round(p.x - G.cam.x), Math.round(p.y - G.cam.y), { face: p.face, vx: p.vx, vy: p.vy, ground: p.onGround, t: p.t, gait: G.walkDist, tier: waveTier(G.wavs), hurt: p.stun > 0, beat: bph(), stomp: G.stompT }); }
 function hud() {
   R(ctx, 'k', 0, 0, VW, 14); for (let i = 0; i < 3; i++) ctx.drawImage(i < G.p.hp ? S_HEART : S_HEART0, 3 + i * 9, 3);
   const L = G.L; if (!L.arena) { const mm = L.items.filter((i) => i.t === 'm'), ww = L.items.filter((i) => i.t === 'w'); ctx.drawImage(S_MAG[0], 34, 1); txt(`${mm.filter((i) => i.got).length}/${mm.length}`, 48, 4, PAL.b);
@@ -558,11 +580,12 @@ function drawEnd() {
 const MAX_DISCOUNT_PCT = 10, REWARD_LADDER = { S: 10, A: 10, B: 7.5, C: 5 };
 function rewardFor(grade) { const pct = REWARD_LADDER[grade]; return pct === undefined ? null : { pct: Math.min(pct, MAX_DISCOUNT_PCT), mix: true }; }
 const pctText = (n) => (Number.isInteger(n) ? n : n.toFixed(1)) + '%';
-const $ = (id) => document.getElementById(id), RW = { root: $('reward') };
+const $ = (id) => document.getElementById(id), RW = { root: $('reward'), armed: false, downOn: null };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 function stateLine() { const r = G.reward; return r ? `demo state in memory only: ${JSON.stringify({ emailAddress: r.emailAddress, earnedGrade: r.earnedGrade, earnedDiscount: r.earnedDiscount, marketingConsent: r.marketingConsent })}` : ''; }
 function showReward(grade) {
-  const r = rewardFor(grade); G.state = 'reward'; document.body.classList.add('reward');
+  const r = rewardFor(grade); G.state = 'reward'; document.body.classList.add('reward'); releaseGameplayInput();
+  RW.armed = false; RW.downOn = null; RW.root.classList.remove('armed');   // inert until every finger that was down on the game has lifted (see the pointer discipline below)
   G.reward = { emailAddress: '', earnedGrade: grade || null, earnedDiscount: r ? r.pct : 0, marketingConsent: false };
   $('rwEmail').value = ''; $('rwMarketing').checked = false; $('rwErr').textContent = ''; $('rwDone').hidden = true; $('rwForm').hidden = !r;
   $('rwTitle').firstChild.textContent = r ? (grade === 'A' || grade === 'S' ? 'YOU GOT AN ' : 'YOU GOT A ') : 'NO LOOT ';
@@ -571,8 +594,23 @@ function showReward(grade) {
   $('rwMix').textContent = r ? '+ SECRET INSPECTA DUBB MINI MIX' : 'FINISH THE JOB AND TRY AGAIN.';
   $('rwLadder').textContent = !r ? 'Only a finished run earns a reward.' : (r.pct >= MAX_DISCOUNT_PCT ? 'TOP TIER. A 10% / B 7.5% / C 5%. EVERY FINISH GETS THE MIX.' : 'A WOULD EARN 10%. A 10% / B 7.5% / C 5%. EVERY FINISH GETS THE MIX.');
   $('rwAgain').textContent = r && r.pct >= MAX_DISCOUNT_PCT ? 'PLAY AGAIN' : (r ? 'PLAY AGAIN FOR AN A' : 'TRY AGAIN');
-  $('rwState').textContent = stateLine(); RW.root.hidden = false; RW.root.scrollTop = 0; setTimeout(() => { if (r) $('rwEmail').focus({ preventScroll: true }); }, 50);
+  $('rwState').textContent = stateLine(); RW.root.hidden = false; RW.root.scrollTop = 0; if (livePointers.size === 0) armReward(); else setTimeout(forceArm, 1500, RW.openToken = {});
+  if (r && matchMedia('(pointer:fine)').matches) setTimeout(() => $('rwEmail').focus({ preventScroll: true }), 50);   // never auto-focus on touch: the keyboard would shove the layout around under a held thumb
 }
+/* Pointer discipline. The press that finishes the game is still down when this screen opens, and the browser's follow-up `click`
+   is aimed at whatever is under the thumb at release: which is now this screen (it hit NAH, I'M GOOD, PLAY AGAIN and the marketing box).
+   So: the screen ignores pointers until every finger has lifted, and a control only acts on a press that BEGAN on it after that.
+   Keyboard activation (a click with no pointer type, Enter on the form) is unaffected. forceArm is only a safety valve so a lost pointerup can never leave it dead. */
+const livePointers = new Set();
+function armReward() { if (!RW.root.hidden && livePointers.size === 0) { RW.armed = true; RW.root.classList.add('armed'); } }
+function forceArm(tok) { if (!RW.root.hidden && !RW.armed && tok === RW.openToken) { livePointers.clear(); armReward(); } }
+addEventListener('pointerdown', (e) => { livePointers.add(e.pointerId); if (!RW.root.hidden && RW.armed) RW.downOn = e.target; }, true);
+const liftPointer = (e) => { livePointers.delete(e.pointerId); if (!RW.root.hidden && !RW.armed && livePointers.size === 0) requestAnimationFrame(armReward); };
+addEventListener('pointerup', liftPointer, true); addEventListener('pointercancel', liftPointer, true);
+RW.root.addEventListener('click', (e) => { const keyboard = e.detail === 0 && !e.pointerType, t = RW.downOn,   // keyboard / programmatic clicks carry no pointer type; a touch or mouse click always does (a touch click can have detail 0 too)
+     paired = !!t && (t === e.target || t.contains(e.target) || e.target.contains(t));
+  if (!RW.armed || !(keyboard || paired)) { e.preventDefault(); e.stopPropagation(); } RW.downOn = null; }, true);
+function releaseGameplayInput() { input.left = input.right = input.jump = input.jumpPressed = false; pressed.clear(); }
 function closeReward(nextState) { RW.root.hidden = true; document.body.classList.remove('reward'); G.reward = null; $('rwEmail').value = ''; if (nextState === 'again') { resetRun(); begin(0); } else G.state = 'title'; }
 function skipReward() { closeReward('title'); }
 $('rwSkip').addEventListener('click', skipReward); $('rwAgain').addEventListener('click', () => closeReward('again'));
@@ -627,7 +665,7 @@ function frame(now) { if (!manual) { acc += Math.min(0.1, (now - prev) / 1000); 
   const t1 = performance.now(); draw(); perf.drw += performance.now() - t1; perf.frames++; requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
 // Test/debug hook for the automated checks. No effect on normal play; remove before any production use.
-window.__plat = { rewardFor, showReward, finish, G, LEVELS, ALL_LEVELS, input, pressed, update, draw, stepPlayer, newPlayer, tileAt, isSolid, loadLevel, begin, resetRun, hurtPlayer, hold(v) { manual = v; }, perf, waveTier, bossDamage, resetPerf() { perf.frames = perf.upd = perf.drw = 0; }, sprites: { CHAV, S_SHOE, BOUNCER, S_WAV, S_MAG, drawInspecta }, T, VW, VH, ctx, PW, PH, mags: magTotal, wavs: wavTotal };
+window.__plat = { rewardFor, showReward, finish, RW, livePointers, bossTo, RUNUP_ROOM, RUNUP_MIN, STOMPS_PER_DAZE, G, LEVELS, ALL_LEVELS, input, pressed, update, draw, stepPlayer, newPlayer, tileAt, isSolid, loadLevel, begin, resetRun, hurtPlayer, hold(v) { manual = v; }, perf, waveTier, bossDamage, resetPerf() { perf.frames = perf.upd = perf.drw = 0; }, GAIT, sprites: { CHAV, S_SHOE, BOUNCER, S_WAV, S_MAG, drawInspecta }, T, VW, VH, ctx, PW, PH, mags: magTotal, wavs: wavTotal };
 })();
 </script>
 </body>
