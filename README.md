@@ -2,4 +2,4 @@
 
 Disposable GitHub Pages staging for human testers. **Not the Ace of Raves production site.** No orders, discounts or emails are processed here.
 
-AoR PUBLIC TEST · M05E.1 CANDIDATE · source 6e4f2cd
+AoR PUBLIC TEST · M05E.1 CANDIDATE · source ba8fd3a
