@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en-GB">
-<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · M05E.1 CANDIDATE · src fb29ec4">
+<head><meta name="robots" content="noindex,nofollow"><meta name="aor-build" content="AoR PUBLIC TEST · src 8e6a389">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 
@@ -182,7 +182,7 @@ function draw() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   if (G.state === 'title') { drawBG(); drawFloor(); G.cups = G.cups.length === G.n ? G.cups : Array.from({ length: G.n }, () => ({ lv: 1, s: Math.sin(G.t / 20) * 0.1, ds: 0, k: 45 })); drawTray(); ctx.fillStyle = 'rgba(10,10,10,.6)'; ctx.fillRect(0, 0, W, H);
     T('RETURN WITH THE DRINKS', 64, 40, C.acid); T('RUNNER R01  PROTOTYPE', 92, 16, C.paper); T('Carry the round through the rave. Steer smoothly. Do not spill the fucking lot.', 126, 14, '#aaa');
-    T(`TAKE  ${G.n}  DRINKS`, 176, 30, C.paper); T(`more drinks = more points, more slosh`, 200, 13, '#aaa'); T(document.body.classList.contains('touch') ? 'pick the number below, then START' : 'LEFT / RIGHT to choose  ·  SPACE or TAP to go', 232, 14, C.acid); T(document.body.classList.contains('touch') ? 'STEER: DRAG LEFT / RIGHT ANYWHERE ON THE SCREEN' : 'STEER  A D / ARROWS / DRAG WITH THE MOUSE   P PAUSE   R RESTART   M SOUND', 256, 11, '#778');
+    T(`TAKE  ${G.n}  DRINKS`, 176, 30, C.paper); T(['A WARM-UP. TAKE IT EASY.', 'A PROPER ROUND.', 'BRAVE OF YOU. MORE POINTS, MORE SLOSH.', 'CHALLENGE MODE. SMOOTH HANDS ONLY.', 'ABSURD. NEARLY IMPOSSIBLE. GOOD LUCK.'][G.n - 2], 200, 13, G.n >= 5 ? C.blue : '#aaa');   // higher counts are challenge modes, not mistakes T(document.body.classList.contains('touch') ? 'pick the number below, then START' : 'LEFT / RIGHT to choose  ·  SPACE or TAP to go', 232, 14, C.acid); T(document.body.classList.contains('touch') ? 'STEER: DRAG LEFT / RIGHT ANYWHERE ON THE SCREEN' : 'STEER  A D / ARROWS / DRAG WITH THE MOUSE   P PAUSE   R RESTART   M SOUND', 256, 11, '#778');
     T('DEMO SCORING ONLY. NO REAL REWARDS.', 280, 11, '#778'); if (G.best) T(`BEST ${G.best.score}  ${G.best.grade}`, 306, 16, C.blue); return; }
   ctx.save(); if (G.shake > 0) ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
   drawBG(); drawFloor(); drawCrowdSides(); drawObjects(); ctx.restore(); if (G.flash > 0) { ctx.fillStyle = `rgba(255,46,99,${G.flash / 24})`; ctx.fillRect(0, 0, W, H); }

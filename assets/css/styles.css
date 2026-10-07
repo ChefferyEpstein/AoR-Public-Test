@@ -113,3 +113,12 @@
 .aor-manifesto p span{display:block}
 .aor-about__future{margin:34px 0 0;max-width:70ch;color:var(--muted);line-height:1.7}
 @media(max-width:900px){.aor-about__intro{grid-template-columns:1fr}.aor-tiers{grid-template-columns:1fr}.aor-tier{min-height:0}}
+
+/* Touch: footer/section links were 15-18px tall. Give them a 44px tap box without changing the desktop layout. */
+@media(pointer:coarse){
+  .legal-footer nav a,.footer-meta nav a,.legal-footer p a{display:inline-flex;align-items:center;min-height:44px}
+  .legal-footer nav,.footer-meta nav{gap:0 18px;margin-top:4px}
+  .section-heading>a,.product-meta h3 a{display:inline-flex;align-items:center;min-height:44px}
+  .scroll-cue{display:inline-flex;align-items:flex-end;min-height:44px}
+  .site-nav--static a{display:inline-flex;align-items:center;min-height:44px}
+}
